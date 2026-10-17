@@ -138,7 +138,7 @@ function EmptyCard() {
     <Pressable
       onPress={() => router.push('/scan')}
       accessibilityRole="button"
-      style={{
+      style={({ pressed }) => ({
         marginTop: space.xl,
         width: '100%',
         maxWidth: 520,
@@ -154,7 +154,8 @@ function EmptyCard() {
         justifyContent: 'center',
         padding: space.xl,
         gap: space.xs,
-      }}>
+        opacity: pressed ? 0.7 : 1,
+      })}>
       <Txt variant="heading">Scan your first card</Txt>
       <Txt style={{ color: colors.muted, textAlign: 'center' }}>Point the camera at a visiting card. The details fill in by themselves.</Txt>
     </Pressable>

@@ -44,7 +44,7 @@ export function SearchBar({ value, onChange }: { value: string; onChange: (q: st
           hitSlop={8}
           accessibilityRole="button"
           accessibilityLabel="Clear search"
-          style={{ width: 40, height: 48, alignItems: 'center', justifyContent: 'center' }}>
+          style={({ pressed }) => ({ width: 40, height: 48, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.5 : 1 })}>
           <Feather name="x" size={18} color={colors.muted} />
         </Pressable>
       )}

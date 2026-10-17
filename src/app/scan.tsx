@@ -102,7 +102,12 @@ export default function Scan() {
           hitSlop={8}
           accessibilityRole="button"
           accessibilityLabel="Cancel scan"
-          style={[styles.close, { top: insets.top + space.md, left: insets.left + space.lg }, shadow.soft]}>
+          style={({ pressed }) => [
+            styles.close,
+            { top: insets.top + space.md, left: insets.left + space.lg },
+            shadow.soft,
+            { opacity: pressed ? 0.7 : 1 },
+          ]}>
           <Feather name="x" size={20} color={colors.ink} />
         </Pressable>
 

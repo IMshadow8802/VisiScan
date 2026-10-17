@@ -24,7 +24,7 @@ export function PhotoPair({ front, back, column }: { front: string; back: string
           onPress={() => setOpen(s.uri)}
           accessibilityRole="imagebutton"
           accessibilityLabel={`${s.label} of card, open full view`}
-          style={[
+          style={({ pressed }) => [
             {
               flex: column ? undefined : 1,
               maxWidth: column || sides.length > 1 ? undefined : '50%',
@@ -34,6 +34,7 @@ export function PhotoPair({ front, back, column }: { front: string; back: string
               backgroundColor: colors.white,
             },
             shadow.soft,
+            { opacity: pressed ? 0.7 : 1 },
           ]}>
           <Image
             source={s.uri}
@@ -65,17 +66,17 @@ export function PhotoPair({ front, back, column }: { front: string; back: string
             hitSlop={8}
             accessibilityRole="button"
             accessibilityLabel="Close photo"
-            style={{
+            style={({ pressed }) => ({
               position: 'absolute',
               top: insets.top + space.md,
               right: insets.right + space.lg,
               width: 44,
               height: 44,
               borderRadius: radius.pill,
-              backgroundColor: colors.white + '26',
+              backgroundColor: colors.white + (pressed ? '4D' : '26'),
               alignItems: 'center',
               justifyContent: 'center',
-            }}>
+            })}>
             <Feather name="x" size={22} color={colors.white} />
           </Pressable>
         </View>

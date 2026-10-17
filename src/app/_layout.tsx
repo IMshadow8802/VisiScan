@@ -12,11 +12,13 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { useReducedMotion } from 'react-native-reanimated';
 import { colors } from '../theme/tokens';
 
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
+  const reduced = useReducedMotion();
   const [loaded, error] = useFonts({
     BricolageGrotesque_700Bold,
     BricolageGrotesque_800ExtraBold,
@@ -33,7 +35,10 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.paper }}>
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.paper } }}>
+      <Stack
+        screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.paper }, animation: reduced ? 'fade' : 'slide_from_right' }}>
+        <Stack.Screen name="scan" options={{ animation: reduced ? 'fade' : 'fade_from_bottom' }} />
+        <Stack.Screen name="review" options={{ animation: reduced ? 'fade' : 'fade_from_bottom' }} />
         <Stack.Screen name="settings" options={{ presentation: 'formSheet' }} />
       </Stack>
     </GestureHandlerRootView>

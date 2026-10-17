@@ -51,7 +51,7 @@ export function ViewToggle({ value, onChange }: { value: ViewMode; onChange: (m:
           accessibilityRole="button"
           accessibilityLabel={label}
           accessibilityState={{ selected: value === m }}
-          style={{ width: W, height: H, alignItems: 'center', justifyContent: 'center' }}>
+          style={({ pressed }) => ({ width: W, height: H, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.6 : 1 })}>
           <Feather name={icon} size={16} color={value === m ? colors.ink : colors.muted} />
         </Pressable>
       ))}

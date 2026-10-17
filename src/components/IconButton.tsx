@@ -9,7 +9,7 @@ export function IconButton({ icon, label, onPress }: { icon: keyof typeof Feathe
       hitSlop={8}
       accessibilityRole="button"
       accessibilityLabel={label}
-      style={[
+      style={({ pressed }) => [
         {
           width: 40,
           height: 40,
@@ -20,6 +20,7 @@ export function IconButton({ icon, label, onPress }: { icon: keyof typeof Feathe
           justifyContent: 'center',
         },
         shadow.soft,
+        { opacity: pressed ? 0.7 : 1 },
       ]}>
       <Feather name={icon} size={20} color={colors.ink} />
     </Pressable>

@@ -21,7 +21,7 @@ export function RangeChips({ value, onChange }: { value: Range; onChange: (r: Ra
             hitSlop={{ top: 10, bottom: 10, left: 2, right: 2 }}
             accessibilityRole="button"
             accessibilityState={{ selected: on }}
-            style={[
+            style={({ pressed }) => [
               {
                 paddingVertical: space.sm - 1,
                 paddingHorizontal: space.md,
@@ -30,6 +30,7 @@ export function RangeChips({ value, onChange }: { value: Range; onChange: (r: Ra
                 backgroundColor: on ? colors.ink : colors.white,
               },
               shadow.soft,
+              { opacity: pressed ? 0.7 : 1 },
             ]}>
             <Txt variant="caption" style={{ color: on ? colors.white : colors.ink }}>
               {label}
