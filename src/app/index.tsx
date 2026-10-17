@@ -1,6 +1,7 @@
 import { FlashList } from '@shopify/flash-list';
 import { router } from 'expo-router';
-import { useEffect, useMemo, useState } from 'react';
+import * as Haptics from 'expo-haptics';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CardDeck } from '../components/CardDeck';
@@ -17,9 +18,36 @@ import { getViewMode, setViewMode, type ViewMode } from '../lib/settings';
 import { colors, radius, space } from '../theme/tokens';
 
 const SCAN_H = 58;
+const TICK_GAP_MS = 60; // a hard flick passes many rows; cap the buzz rate
+
+/** Light haptic each time a new row reaches the top while the user is scrolling. */
+function useRowTicks() {
+  const scrolling = useRef(false);
+  const first = useRef<number | null>(null);
+  const last = useRef(0);
+  return useMemo(
+    () => ({
+      onScrollBeginDrag: () => (scrolling.current = true),
+      onMomentumScrollBegin: () => (scrolling.current = true),
+      onScrollEndDrag: () => (scrolling.current = false),
+      onMomentumScrollEnd: () => (scrolling.current = false),
+      onViewableItemsChanged: ({ viewableItems }: { viewableItems: { index: number | null }[] }) => {
+        const top = viewableItems[0]?.index ?? null;
+        if (top === first.current) return;
+        first.current = top;
+        const now = Date.now();
+        if (!scrolling.current || now - last.current < TICK_GAP_MS) return;
+        last.current = now;
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      },
+    }),
+    [],
+  );
+}
 
 export default function Home() {
   const insets = useSafeAreaInsets();
+  const rowTicks = useRowTicks();
   const { width } = useWindowDimensions();
   const { contacts, loaded } = useContacts();
   const [mode, setMode] = useState<ViewMode | null>(null);
@@ -66,6 +94,7 @@ export default function Home() {
           keyExtractor={(c) => c.id}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
+          {...rowTicks}
           contentContainerStyle={{
             paddingTop: space.md,
             paddingBottom: bottomSpace,
