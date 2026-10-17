@@ -12,9 +12,10 @@ import { Stack } from 'expo-router';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
-import { Dimensions, LogBox } from 'react-native';
+import { AppState, Dimensions, LogBox } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useReducedMotion } from 'react-native-reanimated';
+import { syncNow } from '../lib/sync';
 import { colors } from '../theme/tokens';
 
 SplashScreen.preventAutoHideAsync();
@@ -37,6 +38,13 @@ export default function RootLayout() {
     PlusJakartaSans_600SemiBold,
     PlusJakartaSans_700Bold,
   });
+
+  // push unsynced cards on launch and whenever the app comes back to the foreground
+  useEffect(() => {
+    syncNow();
+    const sub = AppState.addEventListener('change', (s) => s === 'active' && syncNow());
+    return () => sub.remove();
+  }, []);
 
   useEffect(() => {
     if (loaded || error) SplashScreen.hideAsync();

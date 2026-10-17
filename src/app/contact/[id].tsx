@@ -16,6 +16,7 @@ import { Button } from '../../components/Button';
 import { IconButton } from '../../components/IconButton';
 import { Txt } from '../../components/Txt';
 import { deleteContact, getContact } from '../../lib/db';
+import { syncNow } from '../../lib/sync';
 import { detailSections, faceSequence } from '../../lib/detail';
 import { relativeDate } from '../../lib/format';
 import { deletePhotos } from '../../lib/photos';
@@ -63,7 +64,7 @@ export default function ContactDetail() {
 
   const c = contact;
   const confirmDelete = () =>
-    Alert.alert('Delete this card?', 'The card and its photos will be removed from this phone.', [
+    Alert.alert('Delete this card?', 'The card and its photos will be removed from this phone and the server.', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete',
@@ -79,6 +80,7 @@ export default function ContactDetail() {
             return;
           }
           deletePhotos({ frontUri: c.frontUri, backUri: c.backUri });
+          syncNow();
           router.back();
         },
       },

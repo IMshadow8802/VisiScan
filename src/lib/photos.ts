@@ -18,6 +18,12 @@ export async function prepareImage(uri: string): Promise<{ uri: string; base64: 
   return { uri: out.uri, base64: out.base64 ?? '' };
 }
 
+/** iOS can move the app's documents folder on reinstall, so stored absolute URIs go stale; re-root by file name. */
+export function currentUri<T extends string | null>(uri: T): T {
+  if (!uri) return uri;
+  return new File(Paths.document, 'cards', uri.split('/').pop()!).uri as T;
+}
+
 function copyIn(dir: Directory, src: string, name: string): string {
   const dest = new File(dir, name);
   new File(src).copy(dest, { overwrite: true });

@@ -14,6 +14,7 @@ import { ListFieldEditor } from '../components/ListFieldEditor';
 import { PhotoPair } from '../components/PhotoPair';
 import { Txt } from '../components/Txt';
 import { getContact, listContacts, saveContact } from '../lib/db';
+import { syncNow } from '../lib/sync';
 import { canSave, cleanFields, errorMessage, formChanged } from '../lib/form';
 import { extractCard, ExtractError } from '../lib/gemini';
 import { nextColor } from '../lib/palette';
@@ -151,6 +152,7 @@ export default function Review() {
       Alert.alert("Couldn't save the card", 'Nothing was lost. Please try again.');
       return;
     }
+    syncNow();
     if (!existing) deleteTemp();
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setGuard(false);
