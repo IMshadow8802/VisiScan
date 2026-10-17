@@ -74,8 +74,16 @@ async function localPhoto(uri: string): Promise<string> {
   return file.uri;
 }
 
-// stable per card, so a card keeps its colour on every device
-const colorFor = (id: string) => cardColors[[...id].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7) % cardColors.length];
+// Colours go round the palette oldest-first, so neighbours always differ and a new card never
+// recolours older ones. The detail screen reuses the list's pick; the hash is only a fallback.
+const colorById = new Map<string, Contact['color']>();
+const colorFor = (id: string) =>
+  colorById.get(id) ?? cardColors[[...id].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7) % cardColors.length];
+
+/** Newest-first list in, same list out with each card's colour set by its age. */
+export function paintCards(cards: Contact[]): Contact[] {
+  return cards.map((c, i) => ({ ...c, color: cardColors[(cards.length - 1 - i) % cardColors.length] }));
+}
 
 type ServerCard = Omit<Contact, 'color' | 'frontUri' | 'backUri'> & { frontImage: string; backImage: string };
 
@@ -121,14 +129,15 @@ export async function loadCards(): Promise<{ cards: Contact[]; error: string | n
     error = `Showing cards saved on this phone. ${e?.message ?? e}`;
     cards = local;
   }
-  cards = cards.filter((c) => !gone.has(c.id)).sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  cards = paintCards(cards.filter((c) => !gone.has(c.id)).sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1)));
+  for (const c of cards) colorById.set(c.id, c.color);
   return { cards, error };
 }
 
 /** One card: an unsent local version wins, otherwise the server's, otherwise this phone's copy. */
 export async function getCard(id: string): Promise<Contact | null> {
   const waiting = (await unsyncedContacts()).find((c) => c.id === id);
-  if (waiting) return waiting;
+  if (waiting) return { ...waiting, color: colorFor(id) };
   try {
     const res = await axios.post(`${API_URL}/fetchCard`, { id }, { timeout: 30_000 });
     const row = res.data?.data?.rows?.[0];
@@ -136,7 +145,8 @@ export async function getCard(id: string): Promise<Contact | null> {
   } catch {
     // offline: fall through to the local copy
   }
-  return getContact(id);
+  const local = await getContact(id);
+  return local && { ...local, color: colorFor(id) };
 }
 
 export type SyncState = { pending: number; busy: boolean; error: string | null };

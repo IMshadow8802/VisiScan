@@ -1,4 +1,4 @@
-import { cardParts } from './sync';
+import { cardParts, paintCards } from './sync';
 import { emptyFields, type Contact } from './types';
 
 jest.mock('./db', () => ({}));
@@ -31,4 +31,12 @@ test('cardParts sends every text field, lists as JSON, and no back when blank', 
 
 test('cardParts includes back when present', () => {
   expect(parts({ ...card, backUri: 'file:///b.jpg' }).back).toBe('file:///b.jpg');
+});
+
+test('paintCards never repeats a colour within six neighbours, and a new card keeps older colours', () => {
+  const list = Array.from({ length: 9 }, (_, i) => ({ ...card, id: `c${i}` }));
+  const colors = paintCards(list).map((c) => c.color);
+  for (let i = 0; i + 6 <= colors.length; i++) expect(new Set(colors.slice(i, i + 6)).size).toBe(6);
+  const withNew = paintCards([{ ...card, id: 'new' }, ...list]).map((c) => c.color);
+  expect(withNew.slice(1)).toEqual(colors);
 });
