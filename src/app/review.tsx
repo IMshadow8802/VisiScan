@@ -49,7 +49,7 @@ export default function Review() {
   );
   const [existing, setExisting] = useState<Contact | null>(null);
   const [saving, setSaving] = useState(false);
-  const [guard, setGuard] = useState(isNew);
+  const [guard, setGuard] = useState(true);
   const busy = useRef(false);
   const prepared = useRef<{ uri: string; base64: string }[] | null>(null);
 
@@ -177,7 +177,6 @@ export default function Review() {
             </Txt>
             <Txt style={{ color: colors.muted, textAlign: 'center' }}>Your photos are kept. Try again, or type the details in.</Txt>
             <View style={{ alignSelf: 'stretch', gap: space.md, marginTop: space.sm }}>
-              {errKind === 'key' && <Button label="Open settings" icon="key" onPress={() => router.push('/settings')} />}
               <Button
                 label="Retry"
                 icon="refresh-cw"

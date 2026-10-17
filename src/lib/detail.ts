@@ -3,8 +3,6 @@ import type { Contact } from './types';
 export type Row = { label: string; value: string };
 export type Section = { title: string; rows: Row[] };
 
-export const maskKey = (k: string) => `••••${k.slice(-4)}`;
-
 const one = (label: string, value: string): Row[] => [{ label, value }];
 const many = (label: string, values: string[]): Row[] => values.map((value) => ({ label, value }));
 

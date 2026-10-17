@@ -24,7 +24,7 @@ test('list row helpers do not mutate', () => {
 });
 
 test('errorMessage per kind', () => {
-  expect(errorMessage('key')).toBe('API key invalid');
+  expect(errorMessage('key')).toBe('API key missing or invalid. Check EXPO_PUBLIC_GEMINI_API_KEY in .env.local and rebuild');
   expect(errorMessage('quota')).toBe('Daily limit reached, try later');
   expect(errorMessage('timeout')).toBe('No connection');
   expect(errorMessage('network')).toBe('No connection');

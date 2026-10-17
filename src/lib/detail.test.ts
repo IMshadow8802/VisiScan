@@ -1,4 +1,4 @@
-import { detailSections, faceSequence, maskKey } from './detail';
+import { detailSections, faceSequence } from './detail';
 import { emptyFields, type Contact } from './types';
 
 const base: Contact = {
@@ -11,11 +11,6 @@ const base: Contact = {
   createdAt: '2026-10-17T00:00:00Z',
   updatedAt: '2026-10-17T00:00:00Z',
 };
-
-test('maskKey shows last four only', () => {
-  expect(maskKey('AIzaSyABCDEF1234')).toBe('••••1234');
-  expect(maskKey('ab')).toBe('••••ab');
-});
 
 test('detailSections is empty for an empty card', () => {
   expect(detailSections(base)).toEqual([]);

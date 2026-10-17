@@ -1,5 +1,5 @@
 import Feather from '@expo/vector-icons/Feather';
-import { router, useFocusEffect } from 'expo-router';
+import { router } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
@@ -8,10 +8,9 @@ import { CardSurface } from '../components/BusinessCard';
 import { Button } from '../components/Button';
 import { Txt } from '../components/Txt';
 import { scanSide } from '../lib/scan';
-import { getApiKey } from '../lib/settings';
 import { colors, radius, shadow, space, type CardColor } from '../theme/tokens';
 
-type Step = 'front' | 'back' | 'key';
+type Step = 'front' | 'back';
 
 export default function Scan() {
   const insets = useSafeAreaInsets();
@@ -35,11 +34,9 @@ export default function Scan() {
     setStep('back');
   };
 
-  const finish = async (back: string | null) => {
+  const finish = (back: string | null) => {
     sides.current.back = back;
-    if (await getApiKey()) return goReview();
-    setStep('key');
-    router.push('/settings');
+    goReview();
   };
 
   const scanBack = async () => {
@@ -47,7 +44,7 @@ export default function Scan() {
     const uri = await scanSide().catch(() => null);
     setBusy(false);
     // cancelled back scan stays on this step
-    if (uri) await finish(uri);
+    if (uri) finish(uri);
   };
 
   useEffect(() => {
@@ -55,14 +52,6 @@ export default function Scan() {
     started.current = true;
     scanFront();
   }, []);
-
-  // back from /settings: continue once a key exists
-  useFocusEffect(
-    useCallback(() => {
-      if (step !== 'key') return;
-      getApiKey().then((k) => k && goReview());
-    }, [step, goReview]),
-  );
 
   const content = {
     front: {
@@ -76,12 +65,6 @@ export default function Scan() {
       label: 'Step 2 of 2',
       title: 'Back side',
       body: 'Many cards carry more numbers or an address on the back.',
-    },
-    key: {
-      color: 'lilac' as CardColor,
-      label: 'One more thing',
-      title: 'Add your Gemini key',
-      body: 'The card is read by Gemini. Add your API key in Settings to continue.',
     },
   }[step];
 
@@ -124,9 +107,7 @@ export default function Scan() {
               <Button label={busy ? 'Opening camera…' : 'Scan back'} icon="camera" onPress={scanBack} disabled={busy} />
               <Button label="Back is blank — skip" variant="plain" onPress={() => finish(null)} disabled={busy} />
             </>
-          )}
-          {step === 'key' && <Button label="Open settings" icon="key" onPress={() => router.push('/settings')} />}
-        </View>
+          )}        </View>
       </ScrollView>
     </View>
   );

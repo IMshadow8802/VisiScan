@@ -1,4 +1,3 @@
-import Feather from '@expo/vector-icons/Feather';
 import { FlashList } from '@shopify/flash-list';
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
@@ -15,7 +14,7 @@ import { ViewToggle } from '../components/ViewToggle';
 import { useContacts } from '../hooks/useContacts';
 import { filterContacts, type Range } from '../lib/search';
 import { getViewMode, setViewMode, type ViewMode } from '../lib/settings';
-import { colors, radius, shadow, space } from '../theme/tokens';
+import { colors, radius, space } from '../theme/tokens';
 
 const SCAN_H = 58;
 
@@ -96,25 +95,6 @@ export default function Home() {
             </Txt>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
-            <Pressable
-              onPress={() => router.push('/settings')}
-              hitSlop={6}
-              accessibilityRole="button"
-              accessibilityLabel="Settings"
-              style={[
-                {
-                  width: 36,
-                  height: 36,
-                  borderRadius: radius.sm + 2,
-                  borderCurve: 'continuous',
-                  backgroundColor: colors.white,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                },
-                shadow.soft,
-              ]}>
-              <Feather name="settings" size={18} color={colors.ink} />
-            </Pressable>
             <ViewToggle value={mode ?? 'stack'} onChange={changeMode} />
           </View>
         </View>

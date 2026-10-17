@@ -39,7 +39,6 @@ sure prebuild + both builds work; no EAS, no store setup.
 - Flat UI. Washed-out or neon colours.
 - Janky animation on old Androids.
 - Wrong data saved silently — the executive always sees and confirms before save.
-- Gemini API key baked into the app bundle.
 
 ## Fields captured
 
@@ -107,13 +106,13 @@ User's:
 - Expo app, Android + iOS.
 - Google Gemini (Flash family — cheapest model with strong accuracy) for extraction.
 - Local storage on the device only.
-- Gemini API key stored with `expo-secure-store`.
+- Gemini API key bundled from `.env.local` (`EXPO_PUBLIC_GEMINI_API_KEY`, optional
+  `EXPO_PUBLIC_GEMINI_MODEL`), so many testers can use the APK without entering a key.
+  No settings screen. Accepted risk: key extractable from the APK. Mitigations: restrict key
+  to the Generative Language API, budget cap, rotate after testing; server proxy when the API
+  is built.
 
 My calls:
-- **Key handling**: key is *not* in the bundle. A small settings sheet (gear icon) lets
-  someone paste the key once; it's saved in SecureStore. Scanning without a key opens that
-  sheet. Known limit: any on-device key can be extracted by a determined attacker; fine for
-  demo, move to a server proxy when the API is built.
 - **Image clean-up before AI**: use the platform document scanner (ML Kit Document Scanner
   on Android, VisionKit on iOS) for auto-crop, deskew and enhancement. If unavailable on a
   device, fall back to the plain camera. This needs a development build (not Expo Go).

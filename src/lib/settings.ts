@@ -1,14 +1,13 @@
-import * as SecureStore from 'expo-secure-store';
 import Storage from 'expo-sqlite/kv-store';
 
 export const DEFAULT_MODEL = 'gemini-3.1-flash-lite';
 export type ViewMode = 'stack' | 'list';
 
-export const getApiKey = () => SecureStore.getItemAsync('gemini_api_key');
-export const setApiKey = (k: string) => SecureStore.setItemAsync('gemini_api_key', k);
-
-export const getModel = async () => (await Storage.getItem('model')) ?? DEFAULT_MODEL;
-export const setModel = (m: string) => Storage.setItem('model', m);
+// ponytail: key is bundled from .env.local (user decision: many testers, nobody pastes keys).
+// Anyone with the APK can extract it — restrict the key in Google Cloud and rotate after testing.
+// Expo only inlines literal `process.env.EXPO_PUBLIC_*` access, keep it that way.
+export const getApiKey = async () => process.env.EXPO_PUBLIC_GEMINI_API_KEY?.trim() || null;
+export const getModel = async () => process.env.EXPO_PUBLIC_GEMINI_MODEL?.trim() || DEFAULT_MODEL;
 
 export const getViewMode = async (): Promise<ViewMode> =>
   (await Storage.getItem('viewMode')) === 'list' ? 'list' : 'stack';

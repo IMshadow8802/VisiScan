@@ -17,7 +17,7 @@ export const setItem = (list: string[], i: number, v: string) => list.map((x, j)
 export const removeItem = (list: string[], i: number) => list.filter((_, j) => j !== i);
 
 export function errorMessage(kind: ExtractError['kind']): string {
-  if (kind === 'key') return 'API key invalid';
+  if (kind === 'key') return 'API key missing or invalid. Check EXPO_PUBLIC_GEMINI_API_KEY in .env.local and rebuild';
   if (kind === 'quota') return 'Daily limit reached, try later';
   if (kind === 'timeout' || kind === 'network') return 'No connection';
   return "Couldn't read the card";
