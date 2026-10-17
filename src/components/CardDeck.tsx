@@ -18,7 +18,8 @@ import { colors, space } from '../theme/tokens';
 import { BusinessCard, CARD_ASPECT } from './BusinessCard';
 import { Txt } from './Txt';
 
-// Rest pose per depth (0 = front), matching the mockup: back cards peek above the front one.
+// Rest pose per depth (0 = front, newest). Older cards peek above it, so you pull DOWN to
+// bring them forward, the way the stack looks.
 const DEPTH = [0, 1, 2, 3];
 const PEEK = [0, 0.45, 0.82, 1];
 const SCALE = [1, 0.97, 0.94, 0.91];
@@ -27,9 +28,10 @@ const MAX_W = 520;
 const STEP = 0.55; // scroll distance per card, as a fraction of card height
 
 /**
- * Scrollable deck: scroll up to deal the front card away and bring the next one forward,
- * with a haptic tick per card. A transparent ScrollView drives the pose so momentum and
- * snapping are native; only the cards around the front are mounted.
+ * Scrollable deck: pull down to deal the front card away and bring the next (older) one
+ * forward, with a haptic per card. A transparent, vertically flipped ScrollView (the same
+ * trick FlatList `inverted` uses) drives the pose, so momentum and snapping are native and
+ * nothing re-renders per frame. Only the cards around the front are mounted.
  */
 export function CardDeck({ contacts }: { contacts: Contact[] }) {
   const reduced = useReducedMotion();
@@ -48,8 +50,8 @@ export function CardDeck({ contacts }: { contacts: Contact[] }) {
   });
 
   const tick = useCallback((i: number) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setFront(i);
-    Haptics.selectionAsync();
   }, []);
 
   useAnimatedReaction(
@@ -63,10 +65,12 @@ export function CardDeck({ contacts }: { contacts: Contact[] }) {
   const open = () => current && router.push(`/contact/${current.id}`);
   const mounted = contacts
     .map((c, i) => ({ c, i }))
-    .filter(({ i }) => i >= front - 1 && i <= front + 3);
+    // one invisible card either side, so mounting never happens on screen mid-scroll
+    .filter(({ i }) => i >= front - 2 && i <= front + 4);
 
   return (
-    <View style={{ flex: 1, overflow: 'hidden' }} onLayout={(e) => setBox(e.nativeEvent.layout)}>
+    // no overflow clipping: it cut the card shadows into a visible lane
+    <View style={{ flex: 1 }} onLayout={(e) => setBox(e.nativeEvent.layout)}>
       {box &&
         mounted.map(({ c, i }) => (
           <DeckCard
@@ -86,7 +90,7 @@ export function CardDeck({ contacts }: { contacts: Contact[] }) {
 
       {box && (
         <Animated.ScrollView
-          style={StyleSheet.absoluteFill}
+          style={[StyleSheet.absoluteFill, { transform: [{ scaleY: -1 }] }]}
           onScroll={onScroll}
           scrollEventThrottle={16}
           snapToInterval={step}
@@ -98,7 +102,7 @@ export function CardDeck({ contacts }: { contacts: Contact[] }) {
             style={{ height: box.height + step * (n - 1) }}
             accessibilityRole="button"
             accessibilityLabel={current?.businessName || current?.contactPerson || 'Untitled card'}
-            accessibilityHint="Opens the card. Scroll for the next card."
+            accessibilityHint="Opens the card. Scroll down for older cards."
           />
         </Animated.ScrollView>
       )}
@@ -136,12 +140,16 @@ function DeckCard({
   reduced: boolean;
 }) {
   const pose = useAnimatedStyle(() => {
-    // d < 0: dealt away (up and out); d >= 0: depth in the deck
+    // d < 0: dealt away (down and out); d >= 0: depth in the deck
     const d = index - scrollY.get() / step;
     if (d < 0) {
       return {
-        opacity: interpolate(d, [-1, -0.4, 0], [0, 1, 1], Extrapolation.CLAMP),
-        transform: [{ translateY: d * height * 1.3 }, { rotate: `${reduced ? 0 : d * -6}deg` }],
+        opacity: interpolate(d, [-0.8, -0.3, 0], [0, 1, 1], Extrapolation.CLAMP),
+        transform: [
+          { translateY: -d * height * 0.9 },
+          { rotate: `${reduced ? 0 : d * 4}deg` },
+          { scale: interpolate(d, [-1, 0], [1.04, 1], Extrapolation.CLAMP) },
+        ],
       };
     }
     return {
@@ -157,6 +165,9 @@ function DeckCard({
   return (
     <Animated.View
       pointerEvents="none"
+      // cache the shadowed card as a bitmap; only its transform changes while scrolling
+      shouldRasterizeIOS
+      renderToHardwareTextureAndroid
       importantForAccessibility="no-hide-descendants"
       accessibilityElementsHidden
       style={[{ position: 'absolute', left, top, width, height, zIndex: count - index }, pose]}>

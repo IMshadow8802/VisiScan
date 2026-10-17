@@ -11,7 +11,8 @@
       "bundleIdentifier": "com.prdinfotech.visiscan",
       "supportsTablet": true,
       "infoPlist": {
-        "NSCameraUsageDescription": "VisiScan uses the camera to scan visiting cards."
+        "NSCameraUsageDescription": "VisiScan uses the camera to scan visiting cards.",
+        "CADisableMinimumFrameDurationOnPhone": true
       },
       "appleTeamId": "K3T9Y3AW7F"
     },
@@ -24,8 +25,7 @@
       "predictiveBackGestureEnabled": false,
       "package": "com.prdinfotech.visiscan",
       "permissions": [
-        "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO"
+        "android.permission.CAMERA"
       ]
     },
     "plugins": [
@@ -43,7 +43,8 @@
       [
         "expo-image-picker",
         {
-          "cameraPermission": "VisiScan uses the camera to scan visiting cards."
+          "cameraPermission": "VisiScan uses the camera to scan visiting cards.",
+          "microphonePermission": false
         }
       ]
     ],
