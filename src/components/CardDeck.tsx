@@ -1,7 +1,7 @@
 import Feather from '@expo/vector-icons/Feather';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Pressable, StyleSheet, View, type LayoutRectangle } from 'react-native';
 import Animated, {
   cubicBezier,
@@ -21,15 +21,43 @@ import { BusinessCard, CARD_ASPECT } from './BusinessCard';
 import { Txt } from './Txt';
 
 // Rest pose per depth (0 = front, newest). Older cards peek above it, so you pull DOWN to
-// bring them forward, the way the stack looks.
-const DEPTH = [0, 1, 2, 3];
-const PEEK = [0, 0.45, 0.82, 1];
-const SCALE = [1, 0.97, 0.94, 0.91];
-const ROTATE = [0, 2, -3, 0];
+// bring them forward, the way the stack looks. How many peek depends on the space: 2 on a
+// short phone, more on tall phones and tablets.
+const MIN_BEHIND = 2;
+const MAX_BEHIND = 5;
+const TILTS = [2, -3, 1.5, -2, 2.5];
+const peekAt = (d: number) => (d <= 0 ? 0 : 0.45 + 0.37 * (d - 1)); // card heights above the front card
 const MAX_W = 520; // phones
 const MAX_W_TABLET = 760; // 700pt+ wide area: iPads, Android tablets
 const FOOT = 44; // room kept for the hint and counter
 const STEP = 0.55; // scroll distance per card, as a fraction of card height
+
+/**
+ * Card width and how many cards peek behind it. Shows as many as fit, letting the card shrink
+ * at most 10% on a phone, or down to 440pt on a tablet, to make room for more.
+ */
+export function deckLayout(width: number, height: number): { cardW: number; behind: number } {
+  const tablet = width >= 700;
+  const fullW = Math.min(tablet ? MAX_W_TABLET : MAX_W, width);
+  const floorW = tablet ? 440 : fullW * 0.9;
+  const avail = height - space.xl - FOOT;
+  for (let k = MAX_BEHIND; k >= MIN_BEHIND; k--) {
+    const cardW = Math.min(fullW, (avail / (1 + peekAt(k))) * CARD_ASPECT);
+    if (cardW >= floorW || k === MIN_BEHIND) return { cardW: Math.max(0, cardW), behind: k };
+  }
+  return { cardW: 0, behind: MIN_BEHIND };
+}
+
+/** Rest pose arrays for depths 0..behind+1 (the last one is hidden, fading in). */
+function poses(behind: number) {
+  const depth = Array.from({ length: behind + 2 }, (_, d) => d);
+  return {
+    depth,
+    peek: depth.map((d) => peekAt(Math.min(d, behind))),
+    scale: depth.map((d) => 1 - 0.03 * d),
+    rotate: depth.map((d) => (d === 0 || d > behind ? 0 : TILTS[(d - 1) % TILTS.length])),
+  };
+}
 
 /**
  * Scrollable deck: pull down to deal the front card away and bring the next (older) one
@@ -45,12 +73,12 @@ export function CardDeck({ contacts }: { contacts: Contact[] }) {
   const scrollY = useSharedValue(0);
   const n = contacts.length;
 
-  // fit width, height (landscape) and the phone/tablet cap
-  const maxW = box && box.width >= 700 ? MAX_W_TABLET : MAX_W;
-  const cardW = box ? Math.max(0, Math.min(maxW, box.width, ((box.height - space.xl - FOOT) / (1 + PEEK[2])) * CARD_ASPECT)) : 0;
+  const { cardW, behind } = box ? deckLayout(box.width, box.height) : { cardW: 0, behind: MIN_BEHIND };
+  const pose = useMemo(() => poses(behind), [behind]);
   const cardH = cardW / CARD_ASPECT;
+  const stackH = cardH * (1 + peekAt(behind));
   // centre the whole stack (front card plus the peeking ones) in the space above the footer
-  const stackTop = box ? Math.max(space.xl, (box.height - FOOT - cardH * (1 + PEEK[2])) / 2) : 0;
+  const stackTop = box ? Math.max(space.xl, (box.height - FOOT - stackH) / 2) : 0;
   const step = Math.max(1, cardH * STEP);
 
   const onScroll = useAnimatedScrollHandler((e) => {
@@ -75,7 +103,7 @@ export function CardDeck({ contacts }: { contacts: Contact[] }) {
   const mounted = contacts
     .map((c, i) => ({ c, i }))
     // one invisible card either side, so mounting never happens on screen mid-scroll
-    .filter(({ i }) => i >= front - 2 && i <= front + 4);
+    .filter(({ i }) => i >= front - 2 && i <= front + behind + 2);
 
   return (
     // no overflow clipping: it cut the card shadows into a visible lane
@@ -92,8 +120,10 @@ export function CardDeck({ contacts }: { contacts: Contact[] }) {
             width={cardW}
             height={cardH}
             left={(box.width - cardW) / 2}
-            top={stackTop + cardH * PEEK[2]}
+            top={stackTop + cardH * peekAt(behind)}
             reduced={reduced}
+            behind={behind}
+            pose={pose}
           />
         ))}
 
@@ -139,6 +169,8 @@ function DeckCard({
   left,
   top,
   reduced,
+  behind,
+  pose: P,
 }: {
   contact: Contact;
   index: number;
@@ -150,6 +182,8 @@ function DeckCard({
   left: number;
   top: number;
   reduced: boolean;
+  behind: number;
+  pose: ReturnType<typeof poses>;
 }) {
   const pose = useAnimatedStyle(() => {
     // d < 0: dealt away (down and out); d >= 0: depth in the deck
@@ -165,11 +199,11 @@ function DeckCard({
       };
     }
     return {
-      opacity: interpolate(d, [2, 3], [1, 0], Extrapolation.CLAMP),
+      opacity: interpolate(d, [behind, behind + 1], [1, 0], Extrapolation.CLAMP),
       transform: [
-        { translateY: -height * interpolate(d, DEPTH, PEEK, Extrapolation.CLAMP) },
-        { rotate: `${reduced ? 0 : interpolate(d, DEPTH, ROTATE, Extrapolation.CLAMP)}deg` },
-        { scale: interpolate(d, DEPTH, SCALE, Extrapolation.CLAMP) },
+        { translateY: -height * interpolate(d, P.depth, P.peek, Extrapolation.CLAMP) },
+        { rotate: `${reduced ? 0 : interpolate(d, P.depth, P.rotate, Extrapolation.CLAMP)}deg` },
+        { scale: interpolate(d, P.depth, P.scale, Extrapolation.CLAMP) },
       ],
     };
   });
