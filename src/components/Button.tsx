@@ -1,5 +1,5 @@
 import Feather from '@expo/vector-icons/Feather';
-import { Pressable, type ViewStyle } from 'react-native';
+import { ActivityIndicator, Pressable, type ViewStyle } from 'react-native';
 import Animated, { cubicBezier } from 'react-native-reanimated';
 import { colors, radius, shadow, space } from '../theme/tokens';
 import { typeScale } from '../theme/type';
@@ -12,6 +12,7 @@ export function Button({
   icon,
   variant = 'ink',
   disabled,
+  loading,
   style,
 }: {
   label: string;
@@ -19,6 +20,8 @@ export function Button({
   icon?: keyof typeof Feather.glyphMap;
   variant?: 'ink' | 'plain';
   disabled?: boolean;
+  /** spinner in place of the icon; also disables the button */
+  loading?: boolean;
   style?: ViewStyle;
 }) {
   const ink = variant === 'ink';
@@ -26,10 +29,10 @@ export function Button({
   return (
     <Pressable
       onPress={onPress}
-      disabled={disabled}
+      disabled={disabled || loading}
       accessibilityRole="button"
       accessibilityLabel={label}
-      accessibilityState={{ disabled: !!disabled }}
+      accessibilityState={{ disabled: !!(disabled || loading), busy: !!loading }}
       pressRetentionOffset={16}
       style={[{ flexGrow: 1 }, style]}>
       {({ pressed }) => (
@@ -55,7 +58,7 @@ export function Button({
             },
             ink && !disabled ? shadow.button : shadow.soft,
           ]}>
-          {icon && <Feather name={icon} size={18} color={fg} />}
+          {loading ? <ActivityIndicator size="small" color={fg} /> : icon && <Feather name={icon} size={18} color={fg} />}
           <Txt numberOfLines={1} style={{ color: fg, fontFamily: typeScale.label.fontFamily }}>
             {label}
           </Txt>

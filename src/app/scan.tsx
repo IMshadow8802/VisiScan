@@ -1,4 +1,5 @@
 import Feather from '@expo/vector-icons/Feather';
+import * as Haptics from 'expo-haptics';
 import { router, useNavigation } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
@@ -30,6 +31,7 @@ export default function Scan() {
     const uri = await scanSide().catch(() => null);
     setBusy(false);
     if (!uri) return router.back();
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     sides.current.front = uri;
     setStep('back');
   };
@@ -44,7 +46,9 @@ export default function Scan() {
     const uri = await scanSide().catch(() => null);
     setBusy(false);
     // cancelled back scan stays on this step
-    if (uri) finish(uri);
+    if (!uri) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    finish(uri);
   };
 
   // Open the scanner only after the screen's slide-in finishes: iOS drops a modal
@@ -111,11 +115,11 @@ export default function Scan() {
 
         <View style={[styles.column, { gap: space.md }]}>
           {step === 'front' && (
-            <Button label={busy ? 'Opening camera…' : 'Scan front'} icon="camera" onPress={scanFront} disabled={busy} />
+            <Button label={busy ? 'Processing scan…' : 'Scan front'} icon="camera" onPress={scanFront} loading={busy} />
           )}
           {step === 'back' && (
             <>
-              <Button label={busy ? 'Opening camera…' : 'Scan back'} icon="camera" onPress={scanBack} disabled={busy} />
+              <Button label={busy ? 'Processing scan…' : 'Scan back'} icon="camera" onPress={scanBack} loading={busy} />
               <Button label="Back is blank — skip" variant="plain" onPress={() => finish(null)} disabled={busy} />
             </>
           )}

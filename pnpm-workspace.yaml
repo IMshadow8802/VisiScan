@@ -15,3 +15,6 @@ minimumReleaseAgeExclude:
 allowBuilds:
   '@parcel/watcher': false
   unrs-resolver: false
+
+patchedDependencies:
+  react-native-document-scanner-plugin: patches/react-native-document-scanner-plugin.patch

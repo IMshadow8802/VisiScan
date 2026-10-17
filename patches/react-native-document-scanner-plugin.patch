@@ -1,0 +1,86 @@
+diff --git a/ios/DocScanner/DocScanner.swift b/ios/DocScanner/DocScanner.swift
+index 251c633a707df92e19fd542c6a6f9f975043c936..0a821736ec41a22d8919018d64b226effec936cb 100644
+--- a/ios/DocScanner/DocScanner.swift
++++ b/ios/DocScanner/DocScanner.swift
+@@ -120,51 +120,39 @@ public class DocScanner: NSObject, VNDocumentCameraViewControllerDelegate {
+         _ controller: VNDocumentCameraViewController,
+         didFinishWith scan: VNDocumentCameraScan
+     ) {
+-        var results: [String] = []
+-        
+-        // loop through all scanned pages
+-        for pageNumber in 0...scan.pageCount - 1 {
+-            
+-            // convert scan UIImage to jpeg data
+-            guard let scannedDocumentImage: Data = scan
+-                .imageOfPage(at: pageNumber)
+-                .jpegData(compressionQuality: CGFloat(self.croppedImageQuality) / CGFloat(100)) else {
+-                goBackToPreviousView(controller)
+-                self.errorHandler("Unable to get scanned document in jpeg format")
+-                return
+-            }
+-            
+-            switch responseType {
+-                case ResponseType.base64:
+-                    // convert scan jpeg data to base64
+-                    let base64EncodedImage: String = scannedDocumentImage.base64EncodedString()
+-                    results.append(base64EncodedImage)
+-                case ResponseType.imageFilePath:
+-                    do {
+-                        // save scan jpeg
+-                        let croppedImageFilePath = FileUtil().createImageFile(pageNumber)
+-                        try scannedDocumentImage.write(to: croppedImageFilePath)
+-                        
+-                        // store image file path
+-                        results.append(croppedImageFilePath.absoluteString)
+-                    } catch {
+-                        goBackToPreviousView(controller)
+-                        self.errorHandler("Unable to save scanned image: \(error.localizedDescription)")
++        // VisiScan patch: close the camera immediately and encode/save off the main thread.
++        // Encoding a full-resolution page on main froze the ✓ button for 1–2 s.
++        goBackToPreviousView(controller)
++        let pages = (0..<scan.pageCount).map { scan.imageOfPage(at: $0) }
++        DispatchQueue.global(qos: .userInitiated).async {
++            var results: [String] = []
++            for (pageNumber, page) in pages.enumerated() {
++                guard let scannedDocumentImage: Data = page
++                    .jpegData(compressionQuality: CGFloat(self.croppedImageQuality) / CGFloat(100)) else {
++                    DispatchQueue.main.async { self.errorHandler("Unable to get scanned document in jpeg format") }
++                    return
++                }
++                switch self.responseType {
++                    case ResponseType.base64:
++                        results.append(scannedDocumentImage.base64EncodedString())
++                    case ResponseType.imageFilePath:
++                        do {
++                            let croppedImageFilePath = FileUtil().createImageFile(pageNumber)
++                            try scannedDocumentImage.write(to: croppedImageFilePath)
++                            results.append(croppedImageFilePath.absoluteString)
++                        } catch {
++                            DispatchQueue.main.async { self.errorHandler("Unable to save scanned image: \(error.localizedDescription)") }
++                            return
++                        }
++                    default:
++                        DispatchQueue.main.async {
++                            self.errorHandler("responseType must be \(ResponseType.base64) or \(ResponseType.imageFilePath)")
++                        }
+                         return
+-                    }
+-                default:
+-                    self.errorHandler(
+-                        "responseType must be \(ResponseType.base64) or \(ResponseType.imageFilePath)"
+-                    )
++                }
+             }
+-            
++            DispatchQueue.main.async { self.successHandler(results) }
+         }
+-        
+-        // exit document scanner
+-        goBackToPreviousView(controller)
+-        
+-        // return scanned document results
+-        self.successHandler(results)
+     }
+     
+     /**
