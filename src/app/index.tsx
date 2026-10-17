@@ -10,6 +10,7 @@ import { ContactRow } from '../components/ContactRow';
 import { RangeChips } from '../components/RangeChips';
 import { ScanButton } from '../components/ScanButton';
 import { SearchBar } from '../components/SearchBar';
+import { SyncButton } from '../components/SyncButton';
 import { Txt } from '../components/Txt';
 import { ViewToggle } from '../components/ViewToggle';
 import { useContacts } from '../hooks/useContacts';
@@ -124,6 +125,7 @@ export default function Home() {
             </Txt>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
+            <SyncButton />
             <ViewToggle value={mode ?? 'stack'} onChange={changeMode} />
           </View>
         </View>

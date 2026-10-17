@@ -46,19 +46,44 @@ async function post(path: string, body: FormData | object): Promise<boolean> {
   }
 }
 
-let running: Promise<void> | null = null;
+export type SyncState = { pending: number; busy: boolean };
+let state: SyncState = { pending: 0, busy: false };
+const subs = new Set<() => void>();
+const emit = (s: Partial<SyncState>) => {
+  state = { ...state, ...s };
+  subs.forEach((f) => f());
+};
+// useSyncExternalStore pair, so the header button follows background syncs too
+export const subscribeSync = (f: () => void) => {
+  subs.add(f);
+  return () => void subs.delete(f);
+};
+export const getSyncState = () => state;
+
+const countPending = async () => (await pendingDeletes()).length + (await unsyncedContacts()).length;
+
+let running: Promise<number> | null = null;
 
 /**
  * Push pending deletes, then every card the server hasn't got. Safe to call any time:
  * concurrent calls share one run, and failures just stay pending for the next call.
+ * Resolves to how many items are still waiting (0 = all synced).
  */
 // ponytail: retries on every app open/save, no backoff; a card the server rejects (400/413/415) retries forever
-export function syncNow(): Promise<void> {
+export function syncNow(): Promise<number> {
   running ??= (async () => {
+    emit({ busy: true, pending: await countPending() });
     for (const id of await pendingDeletes()) if (await post('deleteCard', { id })) await clearPendingDelete(id);
-    for (const c of await unsyncedContacts()) if (await post('saveCard', cardForm(c))) await markSynced(c);
+    for (const c of await unsyncedContacts()) {
+      if (await post('saveCard', cardForm(c))) await markSynced(c);
+    }
+    return countPending();
   })()
-    .catch(() => {})
+    .catch(() => state.pending || 1)
+    .then((pending) => {
+      emit({ busy: false, pending });
+      return pending;
+    })
     .finally(() => (running = null));
   return running;
 }
