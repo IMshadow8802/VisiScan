@@ -168,7 +168,7 @@ export default function Review() {
         {phase === 'loading' ? (
           isNew ? <ExtractingCard /> : <ActivityIndicator color={colors.ink} />
         ) : (
-          <Animated.View entering={reduced ? undefined : FadeIn.duration(200)} style={styles.errorCard}>
+          <Animated.View entering={reduced ? undefined : FadeIn.duration(200)} style={[styles.errorCard, shadow.card]}>
             <View style={styles.errorIcon}>
               <Feather name={ERROR_ICON[errKind] ?? 'alert-circle'} size={22} color={colors.ink} />
             </View>
@@ -324,7 +324,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     borderCurve: 'continuous',
     backgroundColor: colors.white,
-    ...shadow.card,
   },
   errorIcon: {
     width: 48,

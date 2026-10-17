@@ -12,7 +12,8 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSCameraUsageDescription": "VisiScan uses the camera to scan visiting cards."
-      }
+      },
+      "appleTeamId": "K3T9Y3AW7F"
     },
     "android": {
       "adaptiveIcon": {
@@ -23,7 +24,8 @@
       "predictiveBackGestureEnabled": false,
       "package": "com.prdinfotech.visiscan",
       "permissions": [
-        "CAMERA"
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "plugins": [

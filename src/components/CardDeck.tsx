@@ -1,159 +1,170 @@
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { View, useWindowDimensions, type LayoutRectangle } from 'react-native';
-import { GestureDetector, useCompetingGestures, usePanGesture, useTapGesture } from 'react-native-gesture-handler';
+import { useCallback, useState } from 'react';
+import { Pressable, StyleSheet, View, type LayoutRectangle } from 'react-native';
 import Animated, {
-  Easing,
-  cubicBezier,
+  Extrapolation,
+  interpolate,
+  useAnimatedReaction,
+  useAnimatedScrollHandler,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
-  withSpring,
-  withTiming,
+  type SharedValue,
 } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 import type { Contact } from '../lib/types';
-import { space } from '../theme/tokens';
+import { colors, space } from '../theme/tokens';
 import { BusinessCard, CARD_ASPECT } from './BusinessCard';
+import { Txt } from './Txt';
 
 // Rest pose per depth (0 = front), matching the mockup: back cards peek above the front one.
-const PEEK = [0, 0.45, 0.82];
-const SCALE = [1, 0.97, 0.94];
-const ROTATE = [0, 2, -3];
+const DEPTH = [0, 1, 2, 3];
+const PEEK = [0, 0.45, 0.82, 1];
+const SCALE = [1, 0.97, 0.94, 0.91];
+const ROTATE = [0, 2, -3, 0];
 const MAX_W = 520;
-const EASE_OUT = Easing.bezier(0.23, 1, 0.32, 1);
+const STEP = 0.55; // scroll distance per card, as a fraction of card height
 
-/** Top 3 of `contacts`; swipe the front card to send it to the back. Key it by the list so order resets. */
+/**
+ * Scrollable deck: scroll up to deal the front card away and bring the next one forward,
+ * with a haptic tick per card. A transparent ScrollView drives the pose so momentum and
+ * snapping are native; only the cards around the front are mounted.
+ */
 export function CardDeck({ contacts }: { contacts: Contact[] }) {
-  const [top, setTop] = useState(0);
+  const reduced = useReducedMotion();
   const [box, setBox] = useState<LayoutRectangle | null>(null);
+  const [front, setFront] = useState(0);
+  const scrollY = useSharedValue(0);
   const n = contacts.length;
-  const visible = [0, 1, 2].slice(0, n).map((d) => contacts[(top + d) % n]);
 
   // fit width, height (landscape) and the tablet cap
-  const cardW = box ? Math.max(0, Math.min(MAX_W, box.width, ((box.height - space.lg) / (1 + PEEK[2])) * CARD_ASPECT)) : 0;
+  const cardW = box ? Math.max(0, Math.min(MAX_W, box.width, ((box.height - space.xl * 2) / (1 + PEEK[2])) * CARD_ASPECT)) : 0;
   const cardH = cardW / CARD_ASPECT;
+  const step = Math.max(1, cardH * STEP);
+
+  const onScroll = useAnimatedScrollHandler((e) => {
+    scrollY.set(e.contentOffset.y);
+  });
+
+  const tick = useCallback((i: number) => {
+    setFront(i);
+    Haptics.selectionAsync();
+  }, []);
+
+  useAnimatedReaction(
+    () => Math.min(n - 1, Math.max(0, Math.round(scrollY.get() / step))),
+    (cur, prev) => {
+      if (prev !== null && cur !== prev) scheduleOnRN(tick, cur);
+    },
+  );
+
+  const current = contacts[front];
+  const open = () => current && router.push(`/contact/${current.id}`);
+  const mounted = contacts
+    .map((c, i) => ({ c, i }))
+    .filter(({ i }) => i >= front - 1 && i <= front + 3);
 
   return (
-    <View style={{ flex: 1 }} onLayout={(e) => setBox(e.nativeEvent.layout)}>
+    <View style={{ flex: 1, overflow: 'hidden' }} onLayout={(e) => setBox(e.nativeEvent.layout)}>
       {box &&
-        visible
-          .map((c, d) => (
-            <DeckCard
-              key={c.id}
-              contact={c}
-              depth={d}
-              width={cardW}
-              height={cardH}
-              left={(box.width - cardW) / 2}
-              top={space.lg + cardH * PEEK[2]}
-              canSwipe={n > 1}
-              onSwiped={() => setTop((t) => (t + 1) % n)}
-            />
-          ))
-          .reverse()}
+        mounted.map(({ c, i }) => (
+          <DeckCard
+            key={c.id}
+            contact={c}
+            index={i}
+            count={n}
+            scrollY={scrollY}
+            step={step}
+            width={cardW}
+            height={cardH}
+            left={(box.width - cardW) / 2}
+            top={space.xl + cardH * PEEK[2]}
+            reduced={reduced}
+          />
+        ))}
+
+      {box && (
+        <Animated.ScrollView
+          style={StyleSheet.absoluteFill}
+          onScroll={onScroll}
+          scrollEventThrottle={16}
+          snapToInterval={step}
+          decelerationRate="fast"
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ height: box.height + step * (n - 1) }}>
+          <Pressable
+            onPress={open}
+            style={{ height: box.height + step * (n - 1) }}
+            accessibilityRole="button"
+            accessibilityLabel={current?.businessName || current?.contactPerson || 'Untitled card'}
+            accessibilityHint="Opens the card. Scroll for the next card."
+          />
+        </Animated.ScrollView>
+      )}
+
+      {n > 1 && (
+        <Txt variant="caption" style={styles.counter} pointerEvents="none">
+          {`${front + 1} / ${n}`}
+        </Txt>
+      )}
     </View>
   );
 }
 
 function DeckCard({
   contact,
-  depth,
+  index,
+  count,
+  scrollY,
+  step,
   width,
   height,
   left,
   top,
-  canSwipe,
-  onSwiped,
+  reduced,
 }: {
   contact: Contact;
-  depth: number;
+  index: number;
+  count: number;
+  scrollY: SharedValue<number>;
+  step: number;
   width: number;
   height: number;
   left: number;
   top: number;
-  canSwipe: boolean;
-  onSwiped: () => void;
+  reduced: boolean;
 }) {
-  const reduced = useReducedMotion();
-  const { width: screenW } = useWindowDimensions();
-  const tx = useSharedValue(0);
-  const opacity = useSharedValue(1);
-  const front = depth === 0;
-  const open = () => router.push(`/contact/${contact.id}`);
-
-  // card went to the back: bring it home from wherever the fling left it
-  useEffect(() => {
-    if (depth === 0) return;
-    tx.set(reduced ? 0 : withSpring(0, { duration: 400, dampingRatio: 1 }));
-    opacity.set(withTiming(1, { duration: 200 }));
-  }, [depth, reduced, tx, opacity]);
-
-  const pan = usePanGesture({
-    enabled: front,
-    activeOffsetX: [-12, 12],
-    failOffsetY: [-20, 20],
-    onUpdate: (e) => {
-      'worklet';
-      tx.set(e.translationX);
-    },
-    onDeactivate: (e) => {
-      'worklet';
-      const away = Math.abs(e.translationX) > width * 0.3 || Math.abs(e.velocityX) > 800;
-      if (!away || !canSwipe) {
-        tx.set(withSpring(0, { duration: 400, dampingRatio: 0.8, velocity: e.velocityX }));
-        return;
-      }
-      scheduleOnRN(Haptics.impactAsync, Haptics.ImpactFeedbackStyle.Light);
-      const done = (finished?: boolean) => {
-        'worklet';
-        if (finished) scheduleOnRN(onSwiped);
+  const pose = useAnimatedStyle(() => {
+    // d < 0: dealt away (up and out); d >= 0: depth in the deck
+    const d = index - scrollY.get() / step;
+    if (d < 0) {
+      return {
+        opacity: interpolate(d, [-1, -0.4, 0], [0, 1, 1], Extrapolation.CLAMP),
+        transform: [{ translateY: d * height * 1.3 }, { rotate: `${reduced ? 0 : d * -6}deg` }],
       };
-      if (reduced) opacity.set(withTiming(0, { duration: 150 }, done));
-      else tx.set(withTiming(Math.sign(e.translationX || e.velocityX) * screenW * 1.2, { duration: 220, easing: EASE_OUT }, done));
-    },
+    }
+    return {
+      opacity: interpolate(d, [2, 3], [1, 0], Extrapolation.CLAMP),
+      transform: [
+        { translateY: -height * interpolate(d, DEPTH, PEEK, Extrapolation.CLAMP) },
+        { rotate: `${reduced ? 0 : interpolate(d, DEPTH, ROTATE, Extrapolation.CLAMP)}deg` },
+        { scale: interpolate(d, DEPTH, SCALE, Extrapolation.CLAMP) },
+      ],
+    };
   });
-  const tap = useTapGesture({ enabled: front, runOnJS: true, onActivate: open });
-  const gesture = useCompetingGestures(pan, tap);
-
-  const drag = useAnimatedStyle(() => ({
-    opacity: opacity.get(),
-    transform: [{ translateX: tx.get() }, { rotate: `${reduced ? 0 : (tx.get() / width) * 12}deg` }],
-  }));
 
   return (
     <Animated.View
-      style={{
-        position: 'absolute',
-        left,
-        top,
-        width,
-        height,
-        zIndex: 3 - depth,
-        transform: [
-          { translateY: -height * PEEK[depth] },
-          { rotate: `${reduced ? 0 : ROTATE[depth]}deg` },
-          { scale: SCALE[depth] },
-        ],
-        transitionProperty: 'transform',
-        transitionDuration: reduced ? 0 : 320,
-        transitionTimingFunction: cubicBezier(0.23, 1, 0.32, 1),
-        animationName: { from: { opacity: 0 } },
-        animationDuration: 250,
-      }}>
-      <GestureDetector gesture={gesture}>
-        <Animated.View
-          style={drag}
-          accessible={front}
-          accessibilityRole="button"
-          accessibilityLabel={contact.businessName || contact.contactPerson || 'Untitled card'}
-          accessibilityHint="Opens the card. Swipe sideways for the next card."
-          accessibilityActions={[{ name: 'activate' }, { name: 'next', label: 'Next card' }]}
-          onAccessibilityAction={(e) => (e.nativeEvent.actionName === 'next' ? onSwiped() : open())}>
-          <BusinessCard contact={contact} />
-        </Animated.View>
-      </GestureDetector>
+      pointerEvents="none"
+      importantForAccessibility="no-hide-descendants"
+      accessibilityElementsHidden
+      style={[{ position: 'absolute', left, top, width, height, zIndex: count - index }, pose]}>
+      <BusinessCard contact={contact} />
     </Animated.View>
   );
 }
+
+const styles = StyleSheet.create({
+  counter: { position: 'absolute', right: space.xs, bottom: space.xs, color: colors.muted },
+});

@@ -1,5 +1,5 @@
 import Feather from '@expo/vector-icons/Feather';
-import { router } from 'expo-router';
+import { router, useNavigation } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
@@ -47,11 +47,22 @@ export default function Scan() {
     if (uri) finish(uri);
   };
 
+  // Open the scanner only after the screen's slide-in finishes: iOS drops a modal
+  // presented mid-transition, which left the first tap doing nothing.
+  const navigation = useNavigation();
   useEffect(() => {
-    if (started.current) return;
-    started.current = true;
-    scanFront();
-  }, []);
+    const start = () => {
+      if (started.current) return;
+      started.current = true;
+      scanFront();
+    };
+    const sub = navigation.addListener('transitionEnd' as never, start);
+    const fallback = setTimeout(start, 600);
+    return () => {
+      sub();
+      clearTimeout(fallback);
+    };
+  }, [navigation]);
 
   const content = {
     front: {
