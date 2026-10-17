@@ -11,6 +11,10 @@ export const colors = {
   paper: '#FBF7F2',
   muted: '#7D7389',
   white: '#FFFFFF',
+  /** "Scan" in the wordmark. */
+  accent: '#F08A6C',
+  /** Inset toggle track. */
+  track: '#EFE8F5',
 } as const;
 
 export type CardColor = 'peach' | 'lilac' | 'mint' | 'sky' | 'butter' | 'rose';
