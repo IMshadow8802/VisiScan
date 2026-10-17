@@ -1,14 +1,15 @@
+import axios from 'axios';
 import { buildRequest, parseExtraction, extractCard, ExtractError } from './gemini';
 import { emptyFields } from './types';
 
 const wrap = (text: string) => ({ candidates: [{ content: { parts: [{ text }] } }] });
 const sample = { ...emptyFields, businessName: 'Acme', contactPerson: 'A B', mobiles: ['98'], emails: ['a@b.c'], addresses: ['1 St\nCity'] };
 
-const realFetch = globalThis.fetch;
-afterEach(() => { globalThis.fetch = realFetch; });
+jest.mock('axios');
+const post = axios.post as jest.Mock;
+afterEach(() => post.mockReset());
 
-const mockFetch = (status: number, body = '') =>
-  (globalThis.fetch = jest.fn().mockResolvedValue({ ok: status < 400, status, text: async () => body, json: async () => JSON.parse(body) }) as any);
+const mockFetch = (status: number, body = '') => post.mockResolvedValue({ status, data: body });
 const kindOf = async () => extractCard([{ base64: 'x' }], 'k', 'm').catch((e) => e.kind);
 
 test('buildRequest sends every image and json schema', () => {
@@ -56,11 +57,11 @@ test('extractCard returns fields on success', async () => {
 });
 
 test('extractCard times out', async () => {
-  globalThis.fetch = jest.fn((_u: any, init: any) => new Promise((_r, rej) => init.signal.addEventListener('abort', () => rej(new Error('abort'))))) as any;
+  post.mockImplementation((_u: any, _d: any, cfg: any) => new Promise((_r, rej) => cfg.signal.addEventListener('abort', () => rej(new Error('abort')))));
   await expect(extractCard([], 'k', 'm', 50)).rejects.toMatchObject({ kind: 'timeout' });
 });
 
-test('extractCard maps fetch rejection to network', async () => {
-  globalThis.fetch = jest.fn().mockRejectedValue(new TypeError('offline')) as any;
+test('extractCard maps request failure to network', async () => {
+  post.mockRejectedValue(new Error('Network Error'));
   expect(await kindOf()).toBe('network');
 });

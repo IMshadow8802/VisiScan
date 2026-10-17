@@ -1,3 +1,4 @@
+import axios from 'axios';
 import { File } from 'expo-file-system';
 import { clearPendingDelete, markSynced, pendingDeletes, unsyncedContacts } from './db';
 import type { Contact } from './types';
@@ -20,40 +21,32 @@ export function cardParts(c: Contact): [string, Part][] {
   return out;
 }
 
-// Expo's global fetch rejects RN-style { uri } parts ("Unsupported FormDataPart"); it takes
-// expo-file-system Files, which carry their own name and image/jpeg type from the .jpg name.
+// RN-style { uri } parts: axios goes through XMLHttpRequest, which streams the file natively.
+// (Expo's global fetch would reject them with "Unsupported FormDataPart".)
 function cardForm(c: Contact): FormData {
   const f = new FormData();
   for (const [k, v] of cardParts(c)) {
-    if (typeof v === 'string') f.append(k, v);
-    else {
-      const file = new File(v.uri);
-      if (!file.exists) throw new Error(`${k} photo is missing on this phone`);
-      f.append(k, file as any);
-    }
+    if (typeof v !== 'string' && !new File(v.uri).exists) throw new Error(`${k} photo is missing on this phone`);
+    f.append(k, v as any);
   }
   return f;
 }
 
 /** null on success, otherwise a short reason for the sync alert. */
 async function post(path: string, body: FormData | object): Promise<string | null> {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), 60_000);
+  const form = body instanceof FormData;
   try {
-    const json = !(body instanceof FormData);
-    const res = await fetch(`${API_URL}/${path}`, {
-      method: 'POST',
-      headers: json ? { 'Content-Type': 'application/json' } : undefined,
-      body: json ? JSON.stringify(body) : body,
-      signal: ctrl.signal,
+    const res = await axios.post(`${API_URL}/${path}`, body, {
+      timeout: 60_000,
+      headers: form ? { 'Content-Type': 'multipart/form-data' } : { 'Content-Type': 'application/json' },
+      // let RN's XHR build the multipart body and boundary itself
+      transformRequest: form ? (d) => d : undefined,
+      validateStatus: () => true,
     });
-    const data = await res.json().catch(() => null);
-    if (res.ok && data?.success !== false) return null;
-    return `Server ${res.status}${data?.message ? `: ${data.message}` : ''}`;
-  } catch (e) {
-    return ctrl.signal.aborted ? 'Timed out' : String((e as Error)?.message ?? e);
-  } finally {
-    clearTimeout(timer);
+    if (res.status >= 200 && res.status < 300 && res.data?.success !== false) return null;
+    return `Server ${res.status}${res.data?.message ? `: ${res.data.message}` : ''}`;
+  } catch (e: any) {
+    return e?.code === 'ECONNABORTED' ? 'Timed out' : String(e?.message ?? e);
   }
 }
 

@@ -1,3 +1,4 @@
+import axios from 'axios';
 import { emptyFields, type CardFields } from './types';
 
 export class ExtractError extends Error {
@@ -73,24 +74,30 @@ export async function extractCard(
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
-    let res: Response;
+    // body kept as raw text: the 400 key check reads it, and parse failures map to 'parse'
+    let res: { status: number; data: string };
     try {
-      res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-        body: JSON.stringify(buildRequest(images)),
-        signal: ctrl.signal,
-      });
+      res = await axios.post(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+        JSON.stringify(buildRequest(images)),
+        {
+          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+          signal: ctrl.signal,
+          responseType: 'text',
+          transformResponse: (d) => d,
+          validateStatus: () => true,
+        },
+      );
     } catch {
       throw new ExtractError(ctrl.signal.aborted ? 'timeout' : 'network');
     }
-    if (!res.ok) {
-      const body = await res.text().catch(() => '');
+    if (res.status >= 400) {
+      const body = typeof res.data === 'string' ? res.data : '';
       if (res.status === 401 || res.status === 403 || (res.status === 400 && /API_KEY_INVALID|api key/i.test(body))) throw new ExtractError('key');
       throw new ExtractError(res.status === 429 ? 'quota' : 'server', `HTTP ${res.status}`);
     }
     try {
-      return parseExtraction(await res.json());
+      return parseExtraction(JSON.parse(res.data));
     } catch (e) {
       throw e instanceof ExtractError ? e : new ExtractError(ctrl.signal.aborted ? 'timeout' : 'parse');
     }
