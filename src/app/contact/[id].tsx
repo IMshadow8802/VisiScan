@@ -1,4 +1,3 @@
-import { Image } from 'expo-image';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useRef, useState, type ReactNode } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
@@ -13,10 +12,11 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BusinessCard, CARD_ASPECT } from '../../components/BusinessCard';
 import { Button } from '../../components/Button';
+import { CardPhoto } from '../../components/CardPhoto';
 import { IconButton } from '../../components/IconButton';
 import { Txt } from '../../components/Txt';
-import { deleteContact, getContact } from '../../lib/db';
-import { syncNow } from '../../lib/sync';
+import { deleteContact } from '../../lib/db';
+import { getCard, syncNow } from '../../lib/sync';
 import { detailSections, faceSequence } from '../../lib/detail';
 import { relativeDate } from '../../lib/format';
 import { deletePhotos } from '../../lib/photos';
@@ -37,7 +37,7 @@ export default function ContactDetail() {
 
   useFocusEffect(
     useCallback(() => {
-      getContact(id).then(setContact, () => setContact(null));
+      getCard(id).then(setContact, () => setContact(null));
     }, [id]),
   );
 
@@ -205,7 +205,7 @@ function FlipCard({ contact }: { contact: Contact }) {
               <BusinessCard contact={contact} />
             ) : (
               <View style={[styles.photo, shadow.card]}>
-                <Image source={face} contentFit="cover" style={styles.photoImg} />
+                <CardPhoto uri={face} contentFit="cover" style={styles.photoImg} />
                 <View style={styles.badge}>
                   <Txt variant="label" style={{ color: colors.white }}>
                     {face === contact.frontUri ? 'Front' : 'Back'}

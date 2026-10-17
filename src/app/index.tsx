@@ -2,7 +2,7 @@ import { FlashList } from '@shopify/flash-list';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, RefreshControl, View, useWindowDimensions } from 'react-native';
+import { Alert, Pressable, RefreshControl, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CardDeck } from '../components/CardDeck';
 import { CARD_ASPECT } from '../components/BusinessCard';
@@ -73,8 +73,9 @@ export default function Home() {
     setRefreshing(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     await syncNow();
-    await reload();
+    const why = await reload();
     setRefreshing(false);
+    if (why) Alert.alert("Couldn't reach the server", why);
   };
 
   const changeMode = (m: ViewMode) => {

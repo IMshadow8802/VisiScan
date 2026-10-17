@@ -1,10 +1,10 @@
 import Feather from '@expo/vector-icons/Feather';
-import { Image } from 'expo-image';
 import { useState } from 'react';
 import { Modal, Pressable, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, radius, shadow, space } from '../theme/tokens';
 import { CARD_ASPECT } from './BusinessCard';
+import { CardPhoto } from './CardPhoto';
 import { Txt } from './Txt';
 
 /** Front/back thumbnails side by side (row) or stacked (column). Tap opens a full view. */
@@ -36,8 +36,8 @@ export function PhotoPair({ front, back, column }: { front: string; back: string
             shadow.soft,
             { opacity: pressed ? 0.7 : 1 },
           ]}>
-          <Image
-            source={s.uri}
+          <CardPhoto
+            uri={s.uri}
             contentFit="cover"
             style={{ flex: 1, borderRadius: radius.md, borderWidth: 1, borderColor: colors.white }}
           />
@@ -60,7 +60,7 @@ export function PhotoPair({ front, back, column }: { front: string; back: string
 
       <Modal visible={!!open} animationType="fade" onRequestClose={() => setOpen(null)} statusBarTranslucent>
         <View style={{ flex: 1, backgroundColor: colors.ink }}>
-          {open && <Image source={open} contentFit="contain" style={{ flex: 1 }} />}
+          {open && <CardPhoto uri={open} contentFit="contain" style={{ flex: 1 }} />}
           <Pressable
             onPress={() => setOpen(null)}
             hitSlop={8}

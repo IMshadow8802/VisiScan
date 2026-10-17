@@ -13,8 +13,8 @@ import { IconButton } from '../components/IconButton';
 import { ListFieldEditor } from '../components/ListFieldEditor';
 import { PhotoPair } from '../components/PhotoPair';
 import { Txt } from '../components/Txt';
-import { getContact, listContacts, saveContact } from '../lib/db';
-import { syncNow } from '../lib/sync';
+import { listContacts, saveContact } from '../lib/db';
+import { getCard, syncNow } from '../lib/sync';
 import { canSave, cleanFields, errorMessage, formChanged } from '../lib/form';
 import { extractCard, ExtractError } from '../lib/gemini';
 import { nextColor } from '../lib/palette';
@@ -86,7 +86,7 @@ export default function Review() {
       extract();
       return;
     }
-    getContact(params.id!)
+    getCard(params.id!)
       .then((c) => {
         if (!c) return router.back();
         const { id, color, frontUri, backUri, createdAt, updatedAt, ...fields } = c;
