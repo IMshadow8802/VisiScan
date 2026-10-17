@@ -18,6 +18,10 @@ import { useReducedMotion } from 'react-native-reanimated';
 import { syncNow } from '../lib/sync';
 import { colors } from '../theme/tokens';
 
+// require, not import: release builds drop it entirely
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+if (__DEV__) require('../lib/reactotron');
+
 SplashScreen.preventAutoHideAsync();
 
 // Phones stay portrait (landscape leaves no room for the deck); tablets rotate freely.
