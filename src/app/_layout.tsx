@@ -29,9 +29,12 @@ SplashScreen.preventAutoHideAsync();
 const { width: sw, height: sh } = Dimensions.get('screen');
 if (Math.min(sw, sh) < 600) ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
 
-// Dev-only noise from react-native-screens: it forwards native-stack transition progress
-// through core Animated even when nothing listens. Harmless; absent in release builds.
-LogBox.ignoreLogs(['Sending `onAnimatedValueUpdate` with no listeners registered']);
+// Dev-only noise, absent in release builds: react-native-screens forwards transition progress
+// through core Animated, and RN's WebSocket (Reactotron's link) emits before anyone listens.
+LogBox.ignoreLogs([
+  'Sending `onAnimatedValueUpdate` with no listeners registered',
+  'Sending `websocketMessage` with no listeners registered',
+]);
 
 export default function RootLayout() {
   const reduced = useReducedMotion();
