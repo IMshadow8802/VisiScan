@@ -1,4 +1,4 @@
-import { canSave, cleanFields, errorMessage, removeItem, setItem } from './form';
+import { canSave, cleanFields, errorMessage, formChanged, removeItem, setItem } from './form';
 import { emptyFields } from './types';
 
 test('canSave needs a business name, person or mobile', () => {
@@ -30,4 +30,11 @@ test('errorMessage per kind', () => {
   expect(errorMessage('network')).toBe('No connection');
   expect(errorMessage('server')).toBe("Couldn't read the card");
   expect(errorMessage('parse')).toBe("Couldn't read the card");
+});
+
+test('formChanged compares fields and lists, ignoring key order and extra loaded keys', () => {
+  const loaded = { ...emptyFields, notes: '', id: 'x', mobiles: ['1'] };
+  expect(formChanged({ notes: '', ...emptyFields, mobiles: ['1'] }, loaded)).toBe(false);
+  expect(formChanged({ ...emptyFields, notes: 'hi', mobiles: ['1'] }, loaded)).toBe(true);
+  expect(formChanged({ ...emptyFields, notes: '', mobiles: ['1', ''] }, loaded)).toBe(true);
 });

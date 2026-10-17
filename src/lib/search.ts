@@ -19,7 +19,7 @@ export function filterContacts(list: Contact[], query: string, range: Range, now
   return list.filter((c) => {
     if (range !== 'all' && new Date(c.createdAt).getTime() < start) return false;
     if (!q) return true;
-    if (digitQuery) return numbers(c).some((n) => digits(n).includes(qd));
+    if (digitQuery && numbers(c).some((n) => digits(n).includes(qd))) return true;
     return texts(c).some((t) => t.toLowerCase().includes(q));
   });
 }

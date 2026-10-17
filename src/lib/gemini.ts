@@ -86,7 +86,7 @@ export async function extractCard(
     }
     if (!res.ok) {
       const body = await res.text().catch(() => '');
-      if (res.status === 403 || (res.status === 400 && /API_KEY_INVALID|api key/i.test(body))) throw new ExtractError('key');
+      if (res.status === 401 || res.status === 403 || (res.status === 400 && /API_KEY_INVALID|api key/i.test(body))) throw new ExtractError('key');
       throw new ExtractError(res.status === 429 ? 'quota' : 'server', `HTTP ${res.status}`);
     }
     try {

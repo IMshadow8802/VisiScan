@@ -3,7 +3,7 @@ import * as Crypto from 'expo-crypto';
 import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams, usePreventRemove } from 'expo-router';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Alert, KeyboardAvoidingView, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { ActivityIndicator, Alert, KeyboardAvoidingView, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '../components/Button';
@@ -14,7 +14,7 @@ import { ListFieldEditor } from '../components/ListFieldEditor';
 import { PhotoPair } from '../components/PhotoPair';
 import { Txt } from '../components/Txt';
 import { getContact, listContacts, saveContact } from '../lib/db';
-import { canSave, cleanFields, errorMessage } from '../lib/form';
+import { canSave, cleanFields, errorMessage, formChanged } from '../lib/form';
 import { extractCard, ExtractError } from '../lib/gemini';
 import { nextColor } from '../lib/palette';
 import { deletePhotos, persistPhotos, prepareImage } from '../lib/photos';
@@ -50,6 +50,7 @@ export default function Review() {
   const [existing, setExisting] = useState<Contact | null>(null);
   const [saving, setSaving] = useState(false);
   const [guard, setGuard] = useState(isNew);
+  const busy = useRef(false);
   const prepared = useRef<{ uri: string; base64: string }[] | null>(null);
 
   const deleteTemp = () => {
@@ -84,35 +85,43 @@ export default function Review() {
       extract();
       return;
     }
-    getContact(params.id!).then((c) => {
-      if (!c) return router.back();
-      const { id, color, frontUri, backUri, createdAt, updatedAt, ...fields } = c;
-      setExisting(c);
-      setForm(fields);
-      setPhotos({ front: frontUri, back: backUri });
-      setPhase('form');
-    });
+    getContact(params.id!)
+      .then((c) => {
+        if (!c) return router.back();
+        const { id, color, frontUri, backUri, createdAt, updatedAt, ...fields } = c;
+        setExisting(c);
+        setForm(fields);
+        setPhotos({ front: frontUri, back: backUri });
+        setPhase('form');
+      })
+      .catch(() => router.back());
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // hardware back, swipe back and the Discard button all land here on a new scan
-  const disablePrevention = usePreventRemove(guard, ({ repeat }) => {
-    Alert.alert('Discard this card?', 'The scan and anything you typed will be lost.', [
-      { text: 'Keep editing', style: 'cancel' },
-      {
-        text: 'Discard',
-        style: 'destructive',
-        onPress: () => {
-          setGuard(false);
-          deleteTemp();
-          repeat();
+  // hardware back, swipe back and the Discard button all land here on a new scan, or an edit with changes
+  const disablePrevention = usePreventRemove(guard && (isNew || (!!existing && formChanged(form, existing))), ({ repeat }) => {
+    if (busy.current) return;
+    Alert.alert(
+      isNew ? 'Discard this card?' : 'Discard changes?',
+      isNew ? 'The scan and anything you typed will be lost.' : 'Your edits to this card will be lost.',
+      [
+        { text: 'Keep editing', style: 'cancel' },
+        {
+          text: 'Discard',
+          style: 'destructive',
+          onPress: () => {
+            setGuard(false);
+            deleteTemp();
+            repeat();
+          },
         },
-      },
-    ]);
+      ],
+    );
   });
 
   const save = async () => {
-    if (!photos || saving) return;
+    if (!photos || busy.current) return;
+    busy.current = true;
     setSaving(true);
     const fields = cleanFields(form);
     const now = new Date().toISOString();
@@ -137,6 +146,7 @@ export default function Review() {
       await saveContact(c);
     } catch {
       if (stored) deletePhotos({ frontUri: stored.front, backUri: stored.back });
+      busy.current = false;
       setSaving(false);
       Alert.alert("Couldn't save the card", 'Nothing was lost. Please try again.');
       return;
@@ -145,7 +155,8 @@ export default function Review() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setGuard(false);
     disablePrevention();
-    router.dismissTo('/');
+    if (existing) router.back();
+    else router.dismissTo('/');
   };
 
   const set = <K extends keyof Form>(k: K) => (v: Form[K]) => setForm((f) => ({ ...f, [k]: v }));
@@ -155,7 +166,7 @@ export default function Review() {
     return (
       <View style={[styles.center, gutter, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
         {phase === 'loading' ? (
-          <ExtractingCard />
+          isNew ? <ExtractingCard /> : <ActivityIndicator color={colors.ink} />
         ) : (
           <Animated.View entering={reduced ? undefined : FadeIn.duration(200)} style={styles.errorCard}>
             <View style={styles.errorIcon}>
@@ -267,7 +278,7 @@ export default function Review() {
 
       <View style={[styles.footer, gutter, { paddingBottom: Math.max(insets.bottom, space.md) }]}>
         <View style={{ flexDirection: 'row', gap: space.md, width: '100%', maxWidth: 720, alignSelf: 'center' }}>
-          <Button label="Discard" variant="plain" onPress={() => router.back()} style={{ flexGrow: 1, flexBasis: 0 }} />
+          <Button label="Discard" variant="plain" onPress={() => router.back()} disabled={saving} style={{ flexGrow: 1, flexBasis: 0 }} />
           <Button
             label={saving ? 'Saving…' : 'Save card'}
             icon="check"

@@ -22,3 +22,7 @@ export function errorMessage(kind: ExtractError['kind']): string {
   if (kind === 'timeout' || kind === 'network') return 'No connection';
   return "Couldn't read the card";
 }
+
+// edit-mode dirty check: any field in `form` differs from the loaded contact
+export const formChanged = (form: Record<string, unknown>, loaded: Record<string, unknown>) =>
+  Object.keys(form).some((k) => JSON.stringify(form[k]) !== JSON.stringify(loaded[k]));

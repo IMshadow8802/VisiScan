@@ -40,6 +40,8 @@ test('extractCard maps http errors', async () => {
   expect(await kindOf()).toBe('key');
   mockFetch(400, '{"error":{"message":"bad request"}}');
   expect(await kindOf()).toBe('server');
+  mockFetch(401);
+  expect(await kindOf()).toBe('key');
   mockFetch(403);
   expect(await kindOf()).toBe('key');
   mockFetch(429);

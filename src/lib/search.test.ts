@@ -39,3 +39,8 @@ test('empty query returns all within range', () => {
   expect(ids(filterContacts(list, '  ', 'all', now))).toEqual(['a', 'b', 'c']);
   expect(ids(filterContacts(list, '', 'week', now))).toEqual(['a', 'b']);
 });
+
+test('digit query also matches pincode in address', () => {
+  const l = [mk('p', { addresses: ['Connaught Place, New Delhi 110001'] })];
+  expect(ids(filterContacts(l, '110001', 'all', now))).toEqual(['p']);
+});

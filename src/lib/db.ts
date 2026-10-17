@@ -14,7 +14,7 @@ async function migrate(db: SQLiteDatabase) {
   const row = await db.getFirstAsync<{ user_version: number }>('PRAGMA user_version');
   if ((row?.user_version ?? 0) < 1) {
     await db.execAsync(`
-      CREATE TABLE contacts (
+      CREATE TABLE IF NOT EXISTS contacts (
         id TEXT PRIMARY KEY NOT NULL,
         businessName TEXT NOT NULL, contactPerson TEXT NOT NULL, designation TEXT NOT NULL,
         mobiles TEXT NOT NULL, landlines TEXT NOT NULL, emails TEXT NOT NULL, addresses TEXT NOT NULL,
