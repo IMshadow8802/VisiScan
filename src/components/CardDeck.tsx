@@ -1,8 +1,10 @@
+import Feather from '@expo/vector-icons/Feather';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, View, type LayoutRectangle } from 'react-native';
 import Animated, {
+  cubicBezier,
   Extrapolation,
   interpolate,
   useAnimatedReaction,
@@ -37,6 +39,7 @@ export function CardDeck({ contacts }: { contacts: Contact[] }) {
   const reduced = useReducedMotion();
   const [box, setBox] = useState<LayoutRectangle | null>(null);
   const [front, setFront] = useState(0);
+  const [moved, setMoved] = useState(false);
   const scrollY = useSharedValue(0);
   const n = contacts.length;
 
@@ -52,6 +55,7 @@ export function CardDeck({ contacts }: { contacts: Contact[] }) {
   const tick = useCallback((i: number) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setFront(i);
+    setMoved(true);
   }, []);
 
   useAnimatedReaction(
@@ -108,9 +112,12 @@ export function CardDeck({ contacts }: { contacts: Contact[] }) {
       )}
 
       {n > 1 && (
-        <Txt variant="caption" style={styles.counter} pointerEvents="none">
-          {`${front + 1} / ${n}`}
-        </Txt>
+        <View style={styles.footer} pointerEvents="none">
+          <ScrollHint atEnd={front === n - 1} moved={moved} reduced={reduced} />
+          <Txt variant="caption" style={styles.counter}>
+            {`${front + 1} / ${n}`}
+          </Txt>
+        </View>
       )}
     </View>
   );
@@ -176,6 +183,39 @@ function DeckCard({
   );
 }
 
+/** Which way to drag. Bounces until the first card change, then stays quiet. */
+function ScrollHint({ atEnd, moved, reduced }: { atEnd: boolean; moved: boolean; reduced: boolean }) {
+  const bounce = !moved && !reduced;
+  return (
+    <View style={styles.hint}>
+      <Animated.View
+        style={
+          bounce && {
+            animationName: { '0%': { transform: [{ translateY: 0 }] }, '50%': { transform: [{ translateY: 4 }] }, '100%': { transform: [{ translateY: 0 }] } },
+            animationDuration: 1200,
+            animationIterationCount: 'infinite',
+            animationTimingFunction: cubicBezier(0.77, 0, 0.175, 1),
+          }
+        }>
+        <Feather name={atEnd ? 'chevrons-up' : 'chevrons-down'} size={16} color={colors.muted} />
+      </Animated.View>
+      <Txt variant="caption" style={{ color: colors.muted }}>
+        {atEnd ? 'Push up for newer cards' : 'Pull down for older cards'}
+      </Txt>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  counter: { position: 'absolute', right: space.xs, bottom: space.xs, color: colors.muted },
+  footer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: space.xs,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  hint: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
+  counter: { position: 'absolute', right: space.xs, color: colors.muted },
 });
