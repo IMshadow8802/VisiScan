@@ -9,14 +9,20 @@ import {
   PlusJakartaSans_700Bold,
 } from '@expo-google-fonts/plus-jakarta-sans';
 import { Stack } from 'expo-router';
+import * as ScreenOrientation from 'expo-screen-orientation';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
-import { LogBox } from 'react-native';
+import { Dimensions, LogBox } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useReducedMotion } from 'react-native-reanimated';
 import { colors } from '../theme/tokens';
 
 SplashScreen.preventAutoHideAsync();
+
+// Phones stay portrait (landscape leaves no room for the deck); tablets rotate freely.
+// 600 = Android's sw600dp tablet line; the smallest iPad is 744pt wide.
+const { width: sw, height: sh } = Dimensions.get('screen');
+if (Math.min(sw, sh) < 600) ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.PORTRAIT_UP).catch(() => {});
 
 // Dev-only noise from react-native-screens: it forwards native-stack transition progress
 // through core Animated even when nothing listens. Harmless; absent in release builds.
