@@ -3,12 +3,13 @@ import * as Crypto from 'expo-crypto';
 import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams, usePreventRemove } from 'expo-router';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Alert, KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Alert, KeyboardAvoidingView, ScrollView, StyleSheet, View, useWindowDimensions } from 'react-native';
 import Animated, { FadeIn, useReducedMotion } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Button } from '../components/Button';
 import { ExtractingCard } from '../components/ExtractingCard';
 import { FieldInput } from '../components/FieldInput';
+import { IconButton } from '../components/IconButton';
 import { ListFieldEditor } from '../components/ListFieldEditor';
 import { PhotoPair } from '../components/PhotoPair';
 import { Txt } from '../components/Txt';
@@ -293,26 +294,9 @@ function Group({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-function IconButton({ icon, label, onPress }: { icon: keyof typeof Feather.glyphMap; label: string; onPress: () => void }) {
-  return (
-    <Pressable onPress={onPress} hitSlop={8} accessibilityRole="button" accessibilityLabel={label} style={[styles.iconBtn, shadow.soft]}>
-      <Feather name={icon} size={20} color={colors.ink} />
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
   center: { flex: 1, backgroundColor: colors.paper, justifyContent: 'center' },
   topBar: { position: 'absolute', left: 0, right: 0, flexDirection: 'row' },
-  iconBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: radius.sm + 2,
-    borderCurve: 'continuous',
-    backgroundColor: colors.white,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   group: {
     gap: space.md,
     padding: space.lg,
