@@ -26,7 +26,9 @@ const DEPTH = [0, 1, 2, 3];
 const PEEK = [0, 0.45, 0.82, 1];
 const SCALE = [1, 0.97, 0.94, 0.91];
 const ROTATE = [0, 2, -3, 0];
-const MAX_W = 520;
+const MAX_W = 520; // phones
+const MAX_W_TABLET = 760; // 700pt+ wide area: iPads, Android tablets
+const FOOT = 44; // room kept for the hint and counter
 const STEP = 0.55; // scroll distance per card, as a fraction of card height
 
 /**
@@ -43,9 +45,12 @@ export function CardDeck({ contacts }: { contacts: Contact[] }) {
   const scrollY = useSharedValue(0);
   const n = contacts.length;
 
-  // fit width, height (landscape) and the tablet cap
-  const cardW = box ? Math.max(0, Math.min(MAX_W, box.width, ((box.height - space.xl * 2) / (1 + PEEK[2])) * CARD_ASPECT)) : 0;
+  // fit width, height (landscape) and the phone/tablet cap
+  const maxW = box && box.width >= 700 ? MAX_W_TABLET : MAX_W;
+  const cardW = box ? Math.max(0, Math.min(maxW, box.width, ((box.height - space.xl - FOOT) / (1 + PEEK[2])) * CARD_ASPECT)) : 0;
   const cardH = cardW / CARD_ASPECT;
+  // centre the whole stack (front card plus the peeking ones) in the space above the footer
+  const stackTop = box ? Math.max(space.xl, (box.height - FOOT - cardH * (1 + PEEK[2])) / 2) : 0;
   const step = Math.max(1, cardH * STEP);
 
   const onScroll = useAnimatedScrollHandler((e) => {
@@ -87,7 +92,7 @@ export function CardDeck({ contacts }: { contacts: Contact[] }) {
             width={cardW}
             height={cardH}
             left={(box.width - cardW) / 2}
-            top={space.xl + cardH * PEEK[2]}
+            top={stackTop + cardH * PEEK[2]}
             reduced={reduced}
           />
         ))}
