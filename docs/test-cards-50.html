@@ -61,22 +61,22 @@ const biz = [
   ['Annapurna Caterers', 'Weddings • Corporate • Parties', 'food'], ['Vardhman Pharma Distributors', 'Wholesale medicines & surgicals', 'pharma'],
   ['BlueOrbit Technologies', 'Web • Apps • Cloud', 'tech'], ['Gupta & Sons Jewellers', 'Hallmarked gold & diamond', 'jewel'],
   ['Sai Ram Packers & Movers', 'Household & office shifting', 'logistics'], ['GreenLeaf Organics', 'Farm-fresh organic produce', 'food'],
-  ['Om Sai Electricals', 'Wiring • Panels • Solar', 'electric'], ['Royal Enfield Service Point', 'Authorised service & spares', 'auto'],
+  ['Om Sai Electricals', 'Wiring • Panels • Solar', 'electric'], ['Bullet Bike Service Point', 'Authorised service & spares', 'auto'],
   ['Nimbus Tours & Travels', 'Flights • Hotels • Packages', 'travel'], ['Sunrise Printing Press', 'Offset • Digital • Flex', 'print'],
   ['Mahalaxmi Textiles', 'Sarees • Suiting • Shirting', 'textile'], ['Precision CNC Works', 'CNC turning & milling job work', 'steel'],
   ['Aarogya Diagnostics', 'Pathology • X-Ray • ECG', 'clinic'], ['Urban Brew Café', 'Coffee • Bakes • Brunch', 'food'],
-  ['Kaveri Hardware & Paints', 'Asian Paints dealer', 'hardware'], ['Bharat Agro Implements', 'Tractor parts & farm tools', 'agri'],
-  ['Pixel Perfect Studio', 'Wedding & product photography', 'print'], ['Shree Balaji Cement Agency', 'UltraTech • ACC • Ambuja', 'hardware'],
+  ['Kaveri Hardware & Paints', 'Interior & exterior paints', 'hardware'], ['Bharat Agro Implements', 'Tractor parts & farm tools', 'agri'],
+  ['Pixel Perfect Studio', 'Wedding & product photography', 'print'], ['Shree Balaji Cement Agency', 'OPC • PPC • White cement', 'hardware'],
   ['Metro Legal Associates', 'Advocates & legal consultants', 'legal'], ['Swastik Plywood House', 'Plywood • Laminates • Veneers', 'interior'],
   ['CoolAir Refrigeration', 'AC sales, service & AMC', 'electric'], ['Tanvi Boutique', 'Designer lehengas & bridal wear', 'textile'],
   ['Saraswati Book Depot', 'School books & stationery', 'print'], ['IronCore Fitness', 'Gym • CrossFit • Yoga', 'fitness'],
-  ['Hindustan Plastics', 'HDPE & PVC moulded products', 'steel'], ['DataNest Solutions', 'Tally • ERP • GST software', 'tech'],
+  ['Hindustan Plastics', 'HDPE & PVC moulded products', 'steel'], ['DataNest Solutions', 'Billing • ERP • GST software', 'tech'],
   ['Ganga Sweets & Namkeen', 'Pure desi ghee sweets', 'food'], ['SafeHands Security Services', 'Guards • CCTV • Facility', 'legal'],
   ['Ruchi Spices', 'Whole & ground masala exporters', 'agri'], ['Vishwakarma Furniture', 'Sofa • Beds • Office furniture', 'interior'],
   ['Apex Chartered Accountants', 'Audit • Tax • GST filing', 'legal'], ['Neelkanth Motors', 'Pre-owned cars, finance available', 'auto'],
   ['Little Steps Play School', 'Playgroup • Nursery • Daycare', 'edu'], ['Bright Future Coaching', 'JEE • NEET • Foundation', 'edu'],
   ['Prakash Opticals', 'Eye testing • Frames • Lenses', 'clinic'], ['Shubh Laxmi Event Planners', 'Décor • Sound • Lights', 'travel'],
-  ['Everest Tiles & Sanitary', 'Kajaria • Jaquar • Cera', 'hardware'], ['Mohan Dairy Farm', 'Milk • Paneer • Ghee', 'agri'],
+  ['Everest Tiles & Sanitary', 'Vitrified • Ceramic • Fittings', 'hardware'], ['Mohan Dairy Farm', 'Milk • Paneer • Ghee', 'agri'],
   ['Spark Digital Marketing', 'SEO • Ads • Social media', 'tech'], ['Raghav Courier Services', 'Domestic & international', 'logistics'],
   ['Jai Ambe Fabricators', 'MS & SS fabrication, gates, grills', 'steel'], ['Fresh Fold Laundry', 'Dry clean • Steam iron • Pickup', 'logistics'],
   ['Divine Ayurveda Kendra', 'Panchakarma & herbal therapy', 'clinic'], ['Northstar Realty', 'Plots • Flats • Commercial', 'legal'],
@@ -106,7 +106,7 @@ const services = {
   auto: ['Engine overhaul', 'Genuine spares', 'Denting & painting', 'Insurance claims'], clinic: ['Mon–Sat 10am–8pm', 'Sunday by appointment', 'All insurance accepted', 'Home sample collection'],
   steel: ['Bulk orders welcome', 'Same-day dispatch', 'ISI marked material', 'Cutting to size'], interior: ['Free site visit', '3D design', '10-year warranty', 'Turnkey projects'],
   food: ['Min. order 50 plates', 'Veg & Jain menus', 'FSSAI Lic. 1002201900' + '4417', 'Free tasting'], pharma: ['24×7 emergency supply', 'Cold chain', 'Drug Lic. DL-20B/1187', 'Hospital supplies'],
-  tech: ['24×7 support', 'AWS & Azure partner', 'ISO 27001', 'Free consultation'], jewel: ['BIS hallmark', 'Old gold exchange', 'Custom designs', 'Easy EMI'],
+  tech: ['24×7 support', 'Cloud hosting', 'ISO 27001', 'Free consultation'], jewel: ['BIS hallmark', 'Old gold exchange', 'Custom designs', 'Easy EMI'],
   logistics: ['Pan-India network', 'Insured transit', 'GPS tracking', 'Doorstep pickup'], electric: ['Licensed contractor', 'AMC available', 'Solar subsidy help', '1-year warranty'],
   travel: ['Visa assistance', 'Group tours', 'Corporate travel', '24×7 helpline'], print: ['Same-day delivery', 'Bulk rates', 'Design support', 'Free pickup & drop'],
   textile: ['Wholesale & retail', 'Custom tailoring', 'Export quality', 'Bridal collection'], hardware: ['Authorised dealer', 'Free home delivery', 'Bulk discounts', 'Colour consultation'],
@@ -169,7 +169,7 @@ const cards = biz.map(([name, tagline, kind], i) => {
   else if (bk === 'extra')
     back = `<div class="col" style="height:100%;justify-content:center;gap:.5em;line-height:1.5"><div style="font-weight:800;font-size:1.2em;color:${p.ac}">Also reach us</div>
       <div>WhatsApp: ${mobile()}</div><div>Accounts: ${mobile()}</div>${land ? '' : `<div>Office: 0${pick(['11', '20', '80', '22'])}-${num(4)} ${num(4)}</div>`}
-      <small style="opacity:.7;margin-top:.5em">Bank: ${pick(['HDFC', 'SBI', 'ICICI', 'Axis'])} Bank · A/c ${num(4)} ${num(4)} ${num(4)} · IFSC ${pick(['HDFC', 'SBIN', 'ICIC', 'UTIB'])}0${num(6)}</small></div>`;
+      <small style="opacity:.7;margin-top:.5em">Bank: ${pick(['City Co-op', 'Janata Sahakari', 'Union Mercantile', 'Shree Nagari'])} Bank · A/c ${num(4)} ${num(4)} ${num(4)} · IFSC ${pick(['CCOB', 'JSBL', 'UMBK', 'SNBK'])}0${num(6)}</small></div>`;
   else
     back = `<div class="col" style="height:100%;justify-content:center;text-align:center;gap:.8em;font-family:'Noto Sans Devanagari'"><div style="font-weight:700;font-size:1.6em;color:${p.ac}">${hi}</div>
       <div style="font-size:1.1em">संपर्क करें: ${mobiles[0]}</div><div>${place[3]} में सर्वश्रेष्ठ सेवा</div><small style="opacity:.6">थोक एवं खुदरा विक्रेता</small></div>`;
