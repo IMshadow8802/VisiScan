@@ -187,21 +187,21 @@ function DeckCard({
 function ScrollHint({ atEnd, moved, reduced }: { atEnd: boolean; moved: boolean; reduced: boolean }) {
   const bounce = !moved && !reduced;
   return (
-    <View style={styles.hint}>
+    <View
+      style={styles.hint}
+      accessible
+      accessibilityLabel={atEnd ? 'Push up for newer cards' : 'Pull down for older cards'}>
       <Animated.View
         style={
           bounce && {
-            animationName: { '0%': { transform: [{ translateY: 0 }] }, '50%': { transform: [{ translateY: 4 }] }, '100%': { transform: [{ translateY: 0 }] } },
+            animationName: { '0%': { transform: [{ translateY: 0 }] }, '50%': { transform: [{ translateY: 5 }] }, '100%': { transform: [{ translateY: 0 }] } },
             animationDuration: 1200,
             animationIterationCount: 'infinite',
             animationTimingFunction: cubicBezier(0.77, 0, 0.175, 1),
           }
         }>
-        <Feather name={atEnd ? 'chevrons-up' : 'chevrons-down'} size={16} color={colors.muted} />
+        <Feather name={atEnd ? 'chevrons-up' : 'chevrons-down'} size={30} color={colors.muted} />
       </Animated.View>
-      <Txt variant="caption" style={{ color: colors.muted }}>
-        {atEnd ? 'Push up for newer cards' : 'Pull down for older cards'}
-      </Txt>
     </View>
   );
 }
@@ -216,6 +216,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  hint: { flexDirection: 'row', alignItems: 'center', gap: space.xs },
+  hint: { alignItems: 'center', justifyContent: 'center' },
   counter: { position: 'absolute', right: space.xs, color: colors.muted },
 });
