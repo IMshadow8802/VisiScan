@@ -2,12 +2,13 @@ import { FlashList } from '@shopify/flash-list';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, View, useWindowDimensions } from 'react-native';
+import { Pressable, RefreshControl, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CardDeck } from '../components/CardDeck';
 import { CARD_ASPECT } from '../components/BusinessCard';
 import { ContactRow } from '../components/ContactRow';
 import { RangeChips } from '../components/RangeChips';
+import { RefreshButton } from '../components/RefreshButton';
 import { ScanButton } from '../components/ScanButton';
 import { SearchBar } from '../components/SearchBar';
 import { SyncButton } from '../components/SyncButton';
@@ -16,6 +17,7 @@ import { ViewToggle } from '../components/ViewToggle';
 import { useContacts } from '../hooks/useContacts';
 import { filterContacts, type Range } from '../lib/search';
 import { getViewMode, setViewMode, type ViewMode } from '../lib/settings';
+import { syncNow } from '../lib/sync';
 import { colors, radius, space } from '../theme/tokens';
 
 const SCAN_H = 58;
@@ -50,7 +52,8 @@ export default function Home() {
   const insets = useSafeAreaInsets();
   const rowTicks = useRowTicks();
   const { width } = useWindowDimensions();
-  const { contacts, loaded } = useContacts();
+  const { contacts, loaded, reload } = useContacts();
+  const [refreshing, setRefreshing] = useState(false);
   const [mode, setMode] = useState<ViewMode | null>(null);
   const [query, setQuery] = useState('');
   const [range, setRange] = useState<Range>('all');
@@ -63,6 +66,16 @@ export default function Home() {
   const columns = width < 600 ? 1 : width < 1000 ? 2 : 3;
   const gutter = { paddingLeft: space.lg + insets.left, paddingRight: space.lg + insets.right };
   const bottomSpace = insets.bottom + space.lg + SCAN_H + space.lg;
+
+  // push anything still waiting, then re-read the cards
+  const refresh = async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    await syncNow();
+    await reload();
+    setRefreshing(false);
+  };
 
   const changeMode = (m: ViewMode) => {
     setMode(m);
@@ -96,6 +109,7 @@ export default function Home() {
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
           {...rowTicks}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={colors.accent} colors={[colors.accent]} />}
           contentContainerStyle={{
             paddingTop: space.md,
             paddingBottom: bottomSpace,
@@ -126,6 +140,7 @@ export default function Home() {
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
             <SyncButton />
+            <RefreshButton busy={refreshing} onPress={refresh} />
             <ViewToggle value={mode ?? 'stack'} onChange={changeMode} />
           </View>
         </View>
