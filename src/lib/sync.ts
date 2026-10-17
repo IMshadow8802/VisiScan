@@ -31,7 +31,7 @@ async function cardForm(c: Contact): Promise<FormData> {
       f.append(k, v);
       continue;
     }
-    // a card from the server keeps its photos there; fetch them so the edit can re-send them
+    // saveCard needs the photos again on edit; a card from the server has them only there
     const uri = await localPhoto(v.uri);
     if (!new File(uri).exists) throw new Error(`${k} photo is missing on this phone`);
     f.append(k, { ...v, uri } as any);
@@ -59,28 +59,25 @@ async function post(path: string, body: FormData | object): Promise<string | nul
 
 // ---- reading from the server: the list shows what fetchCard returns ----
 
-// Photos stay on the server. downloadCardPhoto is a POST, which image views can't send, so a
-// card's photo uri is this marker; localPhoto() fetches it into the cache when it's shown.
-// updatedAt is in the marker so an edited card never shows a stale cached photo.
-const REMOTE = 'visiscan-remote://';
-const remoteUri = (id: string, side: 'front' | 'back', v: string) => `${REMOTE}${id}/${side}/${encodeURIComponent(v)}`;
+// Server photos are plain GET links (API_ROOT/uploads/<frontImage>), shown directly.
+const API_ROOT = API_URL.replace(/\/api\/Card\/?$/, '');
+const imageUrl = (path: string) => `${API_ROOT}/uploads/${path}`;
 
-/** File uri for any card photo; server photos are downloaded once into the cache. */
-export async function localPhoto(uri: string): Promise<string> {
-  if (!uri.startsWith(REMOTE)) return uri;
-  const [id, side, v] = uri.slice(REMOTE.length).split('/');
-  const file = new File(Paths.cache, `card-${id}-${side}-${v.replace(/[^0-9a-z]/gi, '')}.jpg`);
-  if (!file.exists) {
-    const res = await axios.post(`${API_URL}/downloadCardPhoto`, { id, side }, { responseType: 'arraybuffer', timeout: 60_000 });
-    file.write(new Uint8Array(res.data));
-  }
+/**
+ * File uri for a card photo, for re-uploading an edit. Server photos are fetched into the cache
+ * once; each upload gets a new file name on the server, so the cached copy never goes stale.
+ */
+async function localPhoto(uri: string): Promise<string> {
+  if (!uri.startsWith('http')) return uri;
+  const file = new File(Paths.cache, `card-${uri.split('/').slice(-2).join('-')}`);
+  if (!file.exists) await File.downloadFileAsync(uri, file);
   return file.uri;
 }
 
 // stable per card, so a card keeps its colour on every device
 const colorFor = (id: string) => cardColors[[...id].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 7) % cardColors.length];
 
-type ServerCard = Omit<Contact, 'color' | 'frontUri' | 'backUri'> & { hasBack: boolean };
+type ServerCard = Omit<Contact, 'color' | 'frontUri' | 'backUri'> & { frontImage: string; backImage: string };
 
 const fromServer = (r: ServerCard): Contact => ({
   id: r.id,
@@ -88,8 +85,8 @@ const fromServer = (r: ServerCard): Contact => ({
   mobiles: r.mobiles ?? [], landlines: r.landlines ?? [], emails: r.emails ?? [], addresses: r.addresses ?? [],
   website: r.website ?? '', gstin: r.gstin ?? '', description: r.description ?? '', other: r.other ?? '', notes: r.notes ?? '',
   color: colorFor(r.id),
-  frontUri: remoteUri(r.id, 'front', r.updatedAt),
-  backUri: r.hasBack ? remoteUri(r.id, 'back', r.updatedAt) : null,
+  frontUri: imageUrl(r.frontImage),
+  backUri: r.backImage ? imageUrl(r.backImage) : null,
   createdAt: r.createdAt,
   updatedAt: r.updatedAt,
 });
