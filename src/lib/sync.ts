@@ -1,3 +1,4 @@
+import { File } from 'expo-file-system';
 import { clearPendingDelete, markSynced, pendingDeletes, unsyncedContacts } from './db';
 import type { Contact } from './types';
 
@@ -8,7 +9,7 @@ const LISTS = ['mobiles', 'landlines', 'emails', 'addresses'] as const;
 
 type Part = string | { uri: string; name: string; type: 'image/jpeg' };
 
-/** saveCard fields. Photos are RN file parts; back is left out when the card has none. */
+/** saveCard fields. Photo parts are described by uri; back is left out when the card has none. */
 export function cardParts(c: Contact): [string, Part][] {
   const out: [string, Part][] = [
     ...TEXT.map((k): [string, Part] => [k, c[k] ?? '']),
@@ -19,13 +20,23 @@ export function cardParts(c: Contact): [string, Part][] {
   return out;
 }
 
+// Expo's global fetch rejects RN-style { uri } parts ("Unsupported FormDataPart"); it takes
+// expo-file-system Files, which carry their own name and image/jpeg type from the .jpg name.
 function cardForm(c: Contact): FormData {
   const f = new FormData();
-  for (const [k, v] of cardParts(c)) f.append(k, v as any);
+  for (const [k, v] of cardParts(c)) {
+    if (typeof v === 'string') f.append(k, v);
+    else {
+      const file = new File(v.uri);
+      if (!file.exists) throw new Error(`${k} photo is missing on this phone`);
+      f.append(k, file as any);
+    }
+  }
   return f;
 }
 
-async function post(path: string, body: FormData | object): Promise<boolean> {
+/** null on success, otherwise a short reason for the sync alert. */
+async function post(path: string, body: FormData | object): Promise<string | null> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 60_000);
   try {
@@ -36,18 +47,18 @@ async function post(path: string, body: FormData | object): Promise<boolean> {
       body: json ? JSON.stringify(body) : body,
       signal: ctrl.signal,
     });
-    if (!res.ok) return false;
     const data = await res.json().catch(() => null);
-    return data?.success !== false;
-  } catch {
-    return false;
+    if (res.ok && data?.success !== false) return null;
+    return `Server ${res.status}${data?.message ? `: ${data.message}` : ''}`;
+  } catch (e) {
+    return ctrl.signal.aborted ? 'Timed out' : String((e as Error)?.message ?? e);
   } finally {
     clearTimeout(timer);
   }
 }
 
-export type SyncState = { pending: number; busy: boolean };
-let state: SyncState = { pending: 0, busy: false };
+export type SyncState = { pending: number; busy: boolean; error: string | null };
+let state: SyncState = { pending: 0, busy: false, error: null };
 const subs = new Set<() => void>();
 const emit = (s: Partial<SyncState>) => {
   state = { ...state, ...s };
@@ -73,16 +84,30 @@ let running: Promise<number> | null = null;
 export function syncNow(): Promise<number> {
   running ??= (async () => {
     emit({ busy: true, pending: await countPending() });
-    for (const id of await pendingDeletes()) if (await post('deleteCard', { id })) await clearPendingDelete(id);
-    for (const c of await unsyncedContacts()) {
-      if (await post('saveCard', cardForm(c))) await markSynced(c);
+    let error: string | null = null;
+    for (const id of await pendingDeletes()) {
+      const e = await post('deleteCard', { id });
+      if (!e) await clearPendingDelete(id);
+      error ??= e;
     }
-    return countPending();
+    for (const c of await unsyncedContacts()) {
+      let e: string | null;
+      try {
+        e = await post('saveCard', cardForm(c));
+      } catch (err) {
+        e = String((err as Error).message);
+      }
+      if (!e) await markSynced(c);
+      else if (__DEV__) console.warn('sync', c.id, e);
+      error ??= e;
+    }
+    const pending = await countPending();
+    return { pending, error: pending ? error : null };
   })()
-    .catch(() => state.pending || 1)
-    .then((pending) => {
-      emit({ busy: false, pending });
-      return pending;
+    .catch((e) => ({ pending: state.pending || 1, error: String(e?.message ?? e) }))
+    .then((r) => {
+      emit({ busy: false, ...r });
+      return r.pending;
     })
     .finally(() => (running = null));
   return running;

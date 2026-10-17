@@ -6,9 +6,10 @@ import { getSyncState, subscribeSync, syncNow } from '../lib/sync';
 import { colors, radius, shadow } from '../theme/tokens';
 import { Txt } from './Txt';
 
-/** Cloud button: badge = cards not on the server yet, spinner while uploading, tap to sync now. */
+/** Shown only while cards are waiting for the server: badge = count, spinner while uploading, tap to retry. */
 export function SyncButton() {
   const { pending, busy } = useSyncExternalStore(subscribeSync, getSyncState);
+  if (!pending && !busy) return null;
 
   const sync = async () => {
     if (busy) return;
@@ -16,7 +17,8 @@ export function SyncButton() {
     const left = await syncNow();
     if (!left) return void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-    Alert.alert("Couldn't sync", `${left} ${left === 1 ? 'card is' : 'cards are'} still on this phone only. They'll upload automatically when the server is reachable.`);
+    const why = getSyncState().error;
+    Alert.alert("Couldn't sync", `${left} ${left === 1 ? 'card is' : 'cards are'} still on this phone only.${why ? `\n\n${why}` : ''}`);
   };
 
   return (
@@ -24,7 +26,7 @@ export function SyncButton() {
       onPress={sync}
       hitSlop={8}
       accessibilityRole="button"
-      accessibilityLabel={busy ? 'Syncing' : pending ? `Sync ${pending} cards` : 'All cards synced'}
+      accessibilityLabel={busy ? 'Syncing' : `Sync ${pending} cards`}
       accessibilityState={{ busy }}
       style={({ pressed }) => [
         {
@@ -44,7 +46,7 @@ export function SyncButton() {
       {busy ? (
         <ActivityIndicator size="small" color={colors.ink} />
       ) : (
-        <Feather name={pending ? 'upload-cloud' : 'cloud'} size={18} color={pending ? colors.ink : colors.muted} />
+        <Feather name="upload-cloud" size={18} color={colors.ink} />
       )}
       {!busy && pending > 0 && (
         <View
