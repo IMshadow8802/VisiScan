@@ -107,7 +107,8 @@ export default function Scan() {
               <Button label={busy ? 'Opening camera…' : 'Scan back'} icon="camera" onPress={scanBack} disabled={busy} />
               <Button label="Back is blank — skip" variant="plain" onPress={() => finish(null)} disabled={busy} />
             </>
-          )}        </View>
+          )}
+        </View>
       </ScrollView>
     </View>
   );
