@@ -67,7 +67,12 @@ export default function Home() {
           keyExtractor={(c) => c.id}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="on-drag"
-          contentContainerStyle={{ paddingTop: space.md, paddingBottom: bottomSpace, paddingHorizontal: space.lg - space.xs }}
+          contentContainerStyle={{
+            paddingTop: space.md,
+            paddingBottom: bottomSpace,
+            paddingLeft: space.lg - space.xs + insets.left,
+            paddingRight: space.lg - space.xs + insets.right,
+          }}
           renderItem={({ item }) => (
             <View style={{ paddingHorizontal: space.xs, paddingBottom: space.md - 2 }}>
               <ContactRow contact={item} now={now} />
