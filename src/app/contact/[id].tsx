@@ -16,7 +16,7 @@ import { Button } from '../../components/Button';
 import { IconButton } from '../../components/IconButton';
 import { Txt } from '../../components/Txt';
 import { deleteContact } from '../../lib/db';
-import { getCard, syncNow } from '../../lib/sync';
+import { getCard, photoSource, syncNow } from '../../lib/sync';
 import { detailSections, faceSequence } from '../../lib/detail';
 import { relativeDate } from '../../lib/format';
 import { deletePhotos } from '../../lib/photos';
@@ -205,7 +205,7 @@ function FlipCard({ contact }: { contact: Contact }) {
               <BusinessCard contact={contact} />
             ) : (
               <View style={[styles.photo, shadow.card]}>
-                <Image source={face} contentFit="cover" transition={150} style={styles.photoImg} />
+                <Image source={photoSource(face)} contentFit="cover" transition={150} style={styles.photoImg} />
                 <View style={styles.badge}>
                   <Txt variant="label" style={{ color: colors.white }}>
                     {face === contact.frontUri ? 'Front' : 'Back'}

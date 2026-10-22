@@ -15,6 +15,7 @@ import { PhotoPair } from '../components/PhotoPair';
 import { Txt } from '../components/Txt';
 import { listContacts, saveContact } from '../lib/db';
 import { getCard, syncNow } from '../lib/sync';
+import { emailHint, gstinHint, phoneHint } from '../lib/checks';
 import { canSave, cleanFields, errorMessage, formChanged } from '../lib/form';
 import { ExtractError } from '../lib/gemini';
 import { readCard } from '../lib/read';
@@ -218,13 +219,14 @@ export default function Review() {
         <FieldInput label="Designation" value={form.designation} onChangeText={set('designation')} />
       </Group>
       <Group title="Reach">
-        <ListFieldEditor label="Mobiles" noun="mobile" values={form.mobiles} onChange={set('mobiles')} keyboardType="phone-pad" />
-        <ListFieldEditor label="Landlines" noun="landline" values={form.landlines} onChange={set('landlines')} keyboardType="phone-pad" />
+        <ListFieldEditor label="Mobiles" noun="mobile" values={form.mobiles} onChange={set('mobiles')} keyboardType="phone-pad" hint={(v) => phoneHint(v, true)} />
+        <ListFieldEditor label="Landlines" noun="landline" values={form.landlines} onChange={set('landlines')} keyboardType="phone-pad" hint={(v) => phoneHint(v, false)} />
         <ListFieldEditor
           label="Emails"
           noun="email"
           values={form.emails}
           onChange={set('emails')}
+          hint={emailHint}
           keyboardType="email-address"
           autoCapitalize="none"
           autoCorrect={false}
@@ -242,7 +244,7 @@ export default function Review() {
         <ListFieldEditor label="Addresses" noun="address" values={form.addresses} onChange={set('addresses')} multiline />
       </Group>
       <Group title="More">
-        <FieldInput label="GSTIN" value={form.gstin} onChangeText={set('gstin')} autoCapitalize="characters" autoCorrect={false} />
+        <FieldInput label="GSTIN" value={form.gstin} onChangeText={set('gstin')} hint={gstinHint(form.gstin)} autoCapitalize="characters" autoCorrect={false} />
         <FieldInput label="Other details" value={form.other} onChangeText={set('other')} multiline />
         <FieldInput label="Notes" value={form.notes} onChangeText={set('notes')} placeholder="Where you met, what they need…" multiline />
       </Group>

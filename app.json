@@ -13,7 +13,8 @@
       "infoPlist": {
         "NSCameraUsageDescription": "VisiScan uses the camera to scan visiting cards.",
         "CADisableMinimumFrameDurationOnPhone": true,
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSHumanReadableCopyright": "\u00a9 2026 PRD Infotech Pvt. Ltd."
       },
       "appleTeamId": "K3T9Y3AW7F"
     },

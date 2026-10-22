@@ -11,10 +11,12 @@ import {
 import { Stack } from 'expo-router';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
 import { AppState, Dimensions, LogBox } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useReducedMotion } from 'react-native-reanimated';
+import { SignIn } from '../components/SignIn';
+import { getSession, subscribeSession } from '../lib/settings';
 import { syncNow } from '../lib/sync';
 import { colors } from '../theme/tokens';
 
@@ -46,12 +48,15 @@ export default function RootLayout() {
     PlusJakartaSans_700Bold,
   });
 
-  // push unsynced cards on launch and whenever the app comes back to the foreground
+  const session = useSyncExternalStore(subscribeSession, getSession);
+
+  // push unsynced cards on launch, after sign-in, and whenever the app comes back to the foreground
+  // (syncNow does nothing while signed out)
   useEffect(() => {
     syncNow();
     const sub = AppState.addEventListener('change', (s) => s === 'active' && syncNow());
     return () => sub.remove();
-  }, []);
+  }, [session]);
 
   useEffect(() => {
     if (loaded || error) SplashScreen.hideAsync();
@@ -61,11 +66,25 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.paper }}>
-      <Stack
-        screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.paper }, animation: reduced ? 'fade' : 'slide_from_right' }}>
-        <Stack.Screen name="scan" options={{ animation: reduced ? 'fade' : 'fade_from_bottom' }} />
-        <Stack.Screen name="review" options={{ animation: reduced ? 'fade' : 'fade_from_bottom' }} />
-      </Stack>
+      {!session ? (
+        <SignIn />
+      ) : (
+        <Stack
+          screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.paper }, animation: reduced ? 'fade' : 'slide_from_right' }}>
+          <Stack.Screen name="scan" options={{ animation: reduced ? 'fade' : 'fade_from_bottom' }} />
+          <Stack.Screen name="review" options={{ animation: reduced ? 'fade' : 'fade_from_bottom' }} />
+          <Stack.Screen
+            name="sign-out"
+            options={{
+              presentation: 'formSheet',
+              sheetAllowedDetents: 'fitToContents',
+              sheetGrabberVisible: true,
+              sheetCornerRadius: 28,
+              contentStyle: { backgroundColor: colors.paper },
+            }}
+          />
+        </Stack>
+      )}
     </GestureHandlerRootView>
   );
 }

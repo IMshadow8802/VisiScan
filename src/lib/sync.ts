@@ -1,10 +1,32 @@
 import axios from 'axios';
 import { File, Paths } from 'expo-file-system';
 import { cardColors } from '../theme/tokens';
+import { signOut } from './auth';
 import { clearPendingDelete, getContact, listContacts, markSynced, pendingDeletes, unsyncedContacts } from './db';
+import { authHeaders, getSession } from './settings';
 import type { Contact } from './types';
 
-export const API_URL = process.env.EXPO_PUBLIC_API_URL?.trim() || 'https://shadowcodes.in/JRS/api/Card';
+/** Thrown when there is no session, or the CRM answered 401 (the session is cleared). */
+export class SignedOutError extends Error {
+  constructor(message = 'Signed out. Sign in to sync.') {
+    super(message);
+    this.name = 'SignedOutError';
+  }
+}
+
+/** <apiBase>/api/Card for the signed-in company */
+function cardApi(): string {
+  const s = getSession();
+  if (!s) throw new SignedOutError();
+  return `${s.apiBase}/api/Card`;
+}
+
+/** Any 401 from the CRM ends the session; queued cards stay pending for the next sign-in. */
+function expireOn401(status: number) {
+  if (status !== 401) return;
+  signOut();
+  throw new SignedOutError('Session expired. Sign in again.');
+}
 
 const TEXT = ['id', 'businessName', 'contactPerson', 'designation', 'website', 'gstin', 'description', 'other', 'notes', 'createdAt', 'updatedAt'] as const;
 const LISTS = ['mobiles', 'landlines', 'emails', 'addresses'] as const;
@@ -39,29 +61,37 @@ async function cardForm(c: Contact): Promise<FormData> {
   return f;
 }
 
-/** null on success, otherwise a short reason for the sync alert. */
+/** null on success, otherwise a short reason for the sync alert. Throws SignedOutError on 401. */
 async function post(path: string, body: FormData | object): Promise<string | null> {
   const form = body instanceof FormData;
+  const url = `${cardApi()}/${path}`;
+  let res;
   try {
-    const res = await axios.post(`${API_URL}/${path}`, body, {
+    res = await axios.post(url, body, {
       timeout: 60_000,
-      headers: form ? { 'Content-Type': 'multipart/form-data' } : { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': form ? 'multipart/form-data' : 'application/json',
+        ...authHeaders(),
+      },
       // let RN's XHR build the multipart body and boundary itself
       transformRequest: form ? (d) => d : undefined,
       validateStatus: () => true,
     });
-    if (res.status >= 200 && res.status < 300 && res.data?.success !== false) return null;
-    return `Server ${res.status}${res.data?.message ? `: ${res.data.message}` : ''}`;
   } catch (e: any) {
     return e?.code === 'ECONNABORTED' ? 'Timed out' : String(e?.message ?? e);
   }
+  expireOn401(res.status);
+  if (res.status >= 200 && res.status < 300 && res.data?.success !== false) return null;
+  return `Server ${res.status}${res.data?.message ? `: ${res.data.message}` : ''}`;
 }
 
 // ---- reading from the server: the list shows what fetchCard returns ----
 
-// Server photos are plain GET links (API_ROOT/uploads/<frontImage>), shown directly.
-const API_ROOT = API_URL.replace(/\/api\/Card\/?$/, '');
-const imageUrl = (path: string) => `${API_ROOT}/uploads/${path}`;
+// Server photos are GET links (<apiBase>/uploads/<frontImage>) that need the bearer token.
+const imageUrl = (path: string) => `${getSession()?.apiBase ?? ''}/uploads/${path}`;
+
+/** expo-image source for a card photo: server photos carry the token, local files don't. */
+export const photoSource = (uri: string) => (uri.startsWith('http') ? { uri, headers: authHeaders() } : uri);
 
 /**
  * File uri for a card photo, for re-uploading an edit. Server photos are fetched into the cache
@@ -70,7 +100,7 @@ const imageUrl = (path: string) => `${API_ROOT}/uploads/${path}`;
 async function localPhoto(uri: string): Promise<string> {
   if (!uri.startsWith('http')) return uri;
   const file = new File(Paths.cache, `card-${uri.split('/').slice(-2).join('-')}`);
-  if (!file.exists) await File.downloadFileAsync(uri, file);
+  if (!file.exists) await File.downloadFileAsync(uri, file, { headers: authHeaders() });
   return file.uri;
 }
 
@@ -104,7 +134,12 @@ const PAGE = 100;
 async function fetchCards(): Promise<Contact[]> {
   const out: Contact[] = [];
   for (let page = 1; ; page++) {
-    const res = await axios.post(`${API_URL}/fetchCard`, { search: '', pageNumber: page, pageSize: PAGE }, { timeout: 30_000 });
+    const res = await axios.post(
+      `${cardApi()}/fetchCard`,
+      { search: '', pageNumber: page, pageSize: PAGE },
+      { timeout: 30_000, headers: authHeaders(), validateStatus: () => true },
+    );
+    expireOn401(res.status);
     const d = res.data?.data;
     if (!res.data?.success || !Array.isArray(d?.rows)) throw new Error(res.data?.message || 'Bad reply from server');
     out.push(...d.rows.map(fromServer));
@@ -139,11 +174,12 @@ export async function getCard(id: string): Promise<Contact | null> {
   const waiting = (await unsyncedContacts()).find((c) => c.id === id);
   if (waiting) return { ...waiting, color: colorFor(id) };
   try {
-    const res = await axios.post(`${API_URL}/fetchCard`, { id }, { timeout: 30_000 });
+    const res = await axios.post(`${cardApi()}/fetchCard`, { id }, { timeout: 30_000, headers: authHeaders(), validateStatus: () => true });
+    expireOn401(res.status);
     const row = res.data?.data?.rows?.[0];
     if (row) return fromServer(row);
   } catch {
-    // offline: fall through to the local copy
+    // offline or signed out: fall through to the local copy
   }
   const local = await getContact(id);
   return local && { ...local, color: colorFor(id) };
@@ -175,6 +211,8 @@ let running: Promise<number> | null = null;
 // ponytail: retries on every app open/save, no backoff; a card the server rejects (400/413/415) retries forever
 export function syncNow(): Promise<number> {
   running ??= (async () => {
+    // signed out: nothing leaves the phone; the queue syncs after the next sign-in
+    if (!getSession()) return { pending: await countPending(), error: null };
     emit({ busy: true, pending: await countPending() });
     let error: string | null = null;
     for (const id of await pendingDeletes()) {
@@ -187,6 +225,7 @@ export function syncNow(): Promise<number> {
       try {
         e = await post('saveCard', await cardForm(c));
       } catch (err) {
+        if (err instanceof SignedOutError) throw err; // 401: stop the run, cards stay pending
         e = String((err as Error).message);
       }
       if (!e) await markSynced(c);

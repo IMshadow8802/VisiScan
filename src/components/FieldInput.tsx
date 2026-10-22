@@ -1,3 +1,4 @@
+import Feather from '@expo/vector-icons/Feather';
 import { TextInput, useWindowDimensions, View, type TextInputProps } from 'react-native';
 import { colors, radius, space } from '../theme/tokens';
 import { scaleFont, typeScale } from '../theme/type';
@@ -20,7 +21,19 @@ export const inputStyle = (width: number, multiline?: boolean) => ({
   textAlignVertical: multiline ? ('top' as const) : ('center' as const),
 });
 
-export function FieldInput({ label, multiline, ...rest }: TextInputProps & { label: string }) {
+/** "Check it against the card" note under a field; never blocks saving. */
+export function Hint({ text }: { text: string }) {
+  return (
+    <View accessibilityLiveRegion="polite" style={{ flexDirection: 'row', gap: space.xs + 2, alignItems: 'flex-start' }}>
+      <Feather name="alert-triangle" size={13} color={colors.accent} style={{ marginTop: 2 }} />
+      <Txt variant="caption" style={{ flex: 1, color: colors.ink }}>
+        {text}
+      </Txt>
+    </View>
+  );
+}
+
+export function FieldInput({ label, multiline, hint, ...rest }: TextInputProps & { label: string; hint?: string | null }) {
   const { width } = useWindowDimensions();
   return (
     <View style={{ gap: space.xs + 2 }}>
@@ -33,8 +46,9 @@ export function FieldInput({ label, multiline, ...rest }: TextInputProps & { lab
         accessibilityLabel={label}
         multiline={multiline}
         {...rest}
-        style={inputStyle(width, multiline)}
+        style={[inputStyle(width, multiline), hint ? { borderColor: colors.accent } : null]}
       />
+      {hint && <Hint text={hint} />}
     </View>
   );
 }

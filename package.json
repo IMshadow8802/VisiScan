@@ -54,5 +54,6 @@
   "private": true,
   "jest": {
     "preset": "jest-expo"
-  }
+  },
+  "author": "PRD Infotech Pvt. Ltd."
 }

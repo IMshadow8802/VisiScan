@@ -76,7 +76,9 @@ export function CardDeck({ contacts }: { contacts: Contact[] }) {
   const { cardW, behind } = box ? deckLayout(box.width, box.height) : { cardW: 0, behind: MIN_BEHIND };
   const pose = useMemo(() => poses(behind), [behind]);
   const cardH = cardW / CARD_ASPECT;
-  const stackH = cardH * (1 + peekAt(behind));
+  // only reserve peek room for cards that exist, so 1 or 2 cards sit centred, not low
+  const peeking = Math.min(behind, n - 1);
+  const stackH = cardH * (1 + peekAt(peeking));
   // centre the whole stack (front card plus the peeking ones) in the space above the footer
   const stackTop = box ? Math.max(space.xl, (box.height - FOOT - stackH) / 2) : 0;
   const step = Math.max(1, cardH * STEP);
@@ -120,7 +122,7 @@ export function CardDeck({ contacts }: { contacts: Contact[] }) {
             width={cardW}
             height={cardH}
             left={(box.width - cardW) / 2}
-            top={stackTop + cardH * peekAt(behind)}
+            top={stackTop + cardH * peekAt(peeking)}
             reduced={reduced}
             behind={behind}
             pose={pose}

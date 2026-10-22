@@ -8,7 +8,7 @@ import { CardDeck } from '../components/CardDeck';
 import { CARD_ASPECT } from '../components/BusinessCard';
 import { ContactRow } from '../components/ContactRow';
 import { RangeChips } from '../components/RangeChips';
-import { RefreshButton } from '../components/RefreshButton';
+import { IconButton } from '../components/IconButton';
 import { ScanButton } from '../components/ScanButton';
 import { SearchBar } from '../components/SearchBar';
 import { SyncButton } from '../components/SyncButton';
@@ -16,7 +16,7 @@ import { Txt } from '../components/Txt';
 import { ViewToggle } from '../components/ViewToggle';
 import { useContacts } from '../hooks/useContacts';
 import { filterContacts, type Range } from '../lib/search';
-import { getViewMode, setViewMode, type ViewMode } from '../lib/settings';
+import { getSession, getViewMode, setViewMode, type ViewMode } from '../lib/settings';
 import { syncNow } from '../lib/sync';
 import { colors, radius, space } from '../theme/tokens';
 
@@ -57,6 +57,7 @@ export default function Home() {
   const [mode, setMode] = useState<ViewMode | null>(null);
   const [query, setQuery] = useState('');
   const [range, setRange] = useState<Range>('all');
+  const session = getSession(); // home only renders signed in; sign in/out remounts it
 
   useEffect(() => {
     getViewMode().then(setMode);
@@ -130,20 +131,26 @@ export default function Home() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.paper, paddingTop: insets.top + space.lg }}>
       <View style={[gutter, { gap: space.md }]}>
-        <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' }}>
-          <View>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: space.md }}>
+          <View style={{ flexShrink: 1 }}>
             <Txt variant="label" style={{ color: colors.muted }}>
-              {!loaded ? ' ' : contacts.length === 1 ? '1 card' : `${contacts.length} cards`}
+              by PRD Infotech Pvt. Ltd.
             </Txt>
             <Txt variant="display" accessibilityRole="header">
               Visi<Txt variant="display" style={{ color: colors.accent }}>Scan</Txt>
             </Txt>
           </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.md, paddingBottom: space.xs }}>
             <SyncButton />
-            <RefreshButton busy={refreshing} onPress={refresh} />
+            <IconButton icon="power" label="Sign out" onPress={() => router.push('/sign-out')} />
             <ViewToggle value={mode ?? 'stack'} onChange={changeMode} />
           </View>
+        </View>
+        <View style={{ marginTop: -space.sm }}>
+          <Txt style={{ color: colors.ink }}>Welcome back, {firstName(session?.userName)}</Txt>
+          <Txt variant="caption" style={{ color: colors.muted }}>
+            {[session?.companyName, !loaded ? null : contacts.length === 1 ? '1 card' : `${contacts.length} cards`].filter(Boolean).join(' · ') || ' '}
+          </Txt>
         </View>
         <SearchBar value={query} onChange={setQuery} />
         <RangeChips value={range} onChange={setRange} />
@@ -159,6 +166,8 @@ export default function Home() {
     </View>
   );
 }
+
+const firstName = (n?: string) => n?.trim().split(/\s+/)[0] || 'there';
 
 function EmptyCard() {
   return (
