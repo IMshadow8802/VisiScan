@@ -7,6 +7,7 @@ export type ViewMode = 'stack' | 'list';
 // Anyone with the APK can extract it — restrict the key in Google Cloud and rotate after testing.
 // Expo only inlines literal `process.env.EXPO_PUBLIC_*` access, keep it that way.
 export const getApiKey = async () => process.env.EXPO_PUBLIC_GEMINI_API_KEY?.trim() || null;
+export const getClaudeKey = async () => process.env.EXPO_PUBLIC_ANTHROPIC_API_KEY?.trim() || null;
 export const getModel = async () => process.env.EXPO_PUBLIC_GEMINI_MODEL?.trim() || DEFAULT_MODEL;
 
 export const getViewMode = async (): Promise<ViewMode> =>

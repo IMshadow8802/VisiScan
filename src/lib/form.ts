@@ -17,9 +17,14 @@ export const setItem = (list: string[], i: number, v: string) => list.map((x, j)
 export const removeItem = (list: string[], i: number) => list.filter((_, j) => j !== i);
 
 export function errorMessage(kind: ExtractError['kind']): string {
-  if (kind === 'key') return 'API key missing or invalid. Check EXPO_PUBLIC_GEMINI_API_KEY in .env.local, then restart with expo start -c or rebuild';
-  if (kind === 'quota') return 'Daily limit reached, try later';
-  if (kind === 'timeout' || kind === 'network') return 'No connection';
+  if (kind === 'key') return 'API key missing or invalid. Check the keys in .env.local, then restart with expo start -c or rebuild';
+  if (kind === 'quota') return 'Card reader limit reached. Try again in a minute';
+  if (kind === 'busy') return 'Card reader is busy right now. Try again in a moment';
+  if (kind === 'billing') return 'Card reader credits used up. Add credits to the account';
+  if (kind === 'model') return 'Card reader model not found';
+  if (kind === 'blocked') return 'The card reader refused this photo';
+  if (kind === 'timeout') return 'Card reader took too long. Try again';
+  if (kind === 'network') return 'No connection';
   return "Couldn't read the card";
 }
 

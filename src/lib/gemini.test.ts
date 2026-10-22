@@ -10,7 +10,7 @@ const post = axios.post as jest.Mock;
 afterEach(() => post.mockReset());
 
 const mockFetch = (status: number, body = '') => post.mockResolvedValue({ status, data: body });
-const kindOf = async () => extractCard([{ base64: 'x' }], 'k', 'm').catch((e) => e.kind);
+const kindOf = async () => extractCard([{ base64: 'x' }], 'k', 'm', 30000, []).catch((e) => e.kind);
 
 test('buildRequest sends every image and json schema', () => {
   const r: any = buildRequest([{ base64: 'a' }, { base64: 'b' }]);
@@ -47,8 +47,35 @@ test('extractCard maps http errors', async () => {
   expect(await kindOf()).toBe('key');
   mockFetch(429);
   expect(await kindOf()).toBe('quota');
+  mockFetch(402);
+  expect(await kindOf()).toBe('billing');
+  mockFetch(404);
+  expect(await kindOf()).toBe('model');
   mockFetch(500);
-  expect(await kindOf()).toBe('server');
+  expect(await kindOf()).toBe('busy');
+});
+
+test('extractCard keeps Gemini own error message', async () => {
+  mockFetch(503, '{"error":{"code":503,"message":"This model is currently experiencing high demand.","status":"UNAVAILABLE"}}');
+  const e = await extractCard([{ base64: 'x' }], 'k', 'm', 30000, []).catch((x) => x);
+  expect(e.kind).toBe('busy');
+  expect(e.detail).toBe('Gemini 503 UNAVAILABLE: This model is currently experiencing high demand.');
+  mockFetch(502, '<html>bad gateway</html>');
+  expect((await extractCard([{ base64: 'x' }], 'k', 'm', 30000, []).catch((x) => x)).detail).toBe('Gemini 502');
+});
+
+test('parseExtraction says why a 200 has no text', () => {
+  expect(() => parseExtraction({ promptFeedback: { blockReason: 'SAFETY' } })).toThrow(expect.objectContaining({ kind: 'blocked', detail: 'Gemini stopped: SAFETY' }));
+  expect(() => parseExtraction({ candidates: [{ finishReason: 'STOP', content: { parts: [] } }] })).toThrow(expect.objectContaining({ kind: 'parse' }));
+});
+
+test('extractCard retries when Gemini is busy', async () => {
+  post.mockResolvedValueOnce({ status: 503, data: '' }).mockResolvedValueOnce({ status: 200, data: JSON.stringify(wrap(JSON.stringify(sample))) });
+  expect(await extractCard([{ base64: 'x' }], 'k', 'm', 30000, [0])).toEqual(sample);
+  expect(post).toHaveBeenCalledTimes(2);
+  post.mockResolvedValue({ status: 503, data: '' });
+  await expect(extractCard([{ base64: 'x' }], 'k', 'm', 30000, [0, 0])).rejects.toMatchObject({ kind: 'busy' });
+  expect(post).toHaveBeenCalledTimes(5);
 });
 
 test('extractCard returns fields on success', async () => {

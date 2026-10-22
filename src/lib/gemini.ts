@@ -1,21 +1,44 @@
 import axios from 'axios';
 import { emptyFields, type CardFields } from './types';
 
+type Kind = 'key' | 'quota' | 'busy' | 'billing' | 'model' | 'blocked' | 'network' | 'timeout' | 'server' | 'parse';
+
 export class ExtractError extends Error {
-  constructor(public kind: 'key' | 'quota' | 'network' | 'timeout' | 'server' | 'parse', message?: string) {
+  /** `detail` is Gemini's own wording (HTTP code + message), shown under the friendly heading */
+  constructor(public kind: Kind, message?: string, public detail = '') {
     super(message ?? kind);
     this.name = 'ExtractError';
   }
 }
 
-const PROMPT = `These images are the front and back of one visiting card. Extract its details.
+// HTTP status → kind, per ai.google.dev/gemini-api/docs/api-errors
+export function kindForStatus(status: number, body: string): Kind {
+  if (status === 401 || status === 403 || (status === 400 && /API_KEY_INVALID|api key/i.test(body))) return 'key';
+  if (status === 402 || (status === 400 && /FAILED_PRECONDITION|billing/i.test(body))) return 'billing';
+  if (status === 404) return 'model';
+  if (status === 429) return 'quota';
+  if (status >= 500) return 'busy';
+  return 'server';
+}
+
+/** "Gemini 503 UNAVAILABLE: This model is currently experiencing high demand..." */
+export function errorDetail(status: number, body: string): string {
+  let e: any;
+  try {
+    e = JSON.parse(body)?.error;
+  } catch {}
+  const head = ['Gemini', status, typeof e?.status === 'string' ? e.status : ''].filter(Boolean).join(' ');
+  return typeof e?.message === 'string' && e.message ? `${head}: ${e.message}` : head;
+}
+
+export const PROMPT = `These images are the front and back of one visiting card. Extract its details.
 Copy text exactly as printed, in any script. List every phone number once, as a mobile or a landline.
 Give each full multi-line address as one string. Put anything that fits no field in "other".
 Use an empty string or empty array when a field is absent. Never invent anything.`;
 
 const str = { type: 'string' };
 const list = { type: 'array', items: str };
-const SCHEMA = {
+export const SCHEMA = {
   type: 'object',
   properties: {
     businessName: str, contactPerson: str, designation: str,
@@ -49,7 +72,17 @@ export function parseExtraction(json: unknown): CardFields {
   const text = Array.isArray(parts)
     ? parts.map((p: any) => (typeof p?.text === 'string' ? p.text : '')).join('').trim()
     : '';
-  if (!text) throw new ExtractError('parse', 'Empty response');
+  if (!text) {
+    // a 200 with no text means Gemini blocked or cut the answer; say why
+    const why = (json as any)?.promptFeedback?.blockReason ?? (json as any)?.candidates?.[0]?.finishReason;
+    if (why && why !== 'STOP') throw new ExtractError('blocked', 'Blocked', `Gemini stopped: ${why}`);
+    throw new ExtractError('parse', 'Empty response', 'Gemini returned an empty answer');
+  }
+  return fieldsFromText(text);
+}
+
+/** JSON text from either model → clean fields; unparseable text lands in "other" */
+export function fieldsFromText(text: string): CardFields {
   const raw = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
   let o: any;
   try {
@@ -69,8 +102,22 @@ export async function extractCard(
   images: { base64: string }[],
   apiKey: string,
   model: string,
-  timeoutMs = 30000,
+  timeoutMs = 45000,
+  retryMs = [1500, 4000],
 ): Promise<CardFields> {
+  for (let i = 0; ; i++) {
+    try {
+      return await requestOnce(images, apiKey, model, timeoutMs);
+    } catch (e) {
+      // Gemini answers 503 "high demand" in bursts; a short wait usually clears it
+      const busy = e instanceof ExtractError && e.kind === 'busy';
+      if (!busy || i >= retryMs.length) throw e;
+      await new Promise((r) => setTimeout(r, retryMs[i]));
+    }
+  }
+}
+
+async function requestOnce(images: { base64: string }[], apiKey: string, model: string, timeoutMs: number): Promise<CardFields> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
@@ -89,17 +136,18 @@ export async function extractCard(
         },
       );
     } catch {
-      throw new ExtractError(ctrl.signal.aborted ? 'timeout' : 'network');
+      throw ctrl.signal.aborted
+        ? new ExtractError('timeout', undefined, `Gemini took longer than ${timeoutMs / 1000}s`)
+        : new ExtractError('network', undefined, 'Could not reach Gemini');
     }
     if (res.status >= 400) {
       const body = typeof res.data === 'string' ? res.data : '';
-      if (res.status === 401 || res.status === 403 || (res.status === 400 && /API_KEY_INVALID|api key/i.test(body))) throw new ExtractError('key');
-      throw new ExtractError(res.status === 429 ? 'quota' : 'server', `HTTP ${res.status}`);
+      throw new ExtractError(kindForStatus(res.status, body), `HTTP ${res.status}`, errorDetail(res.status, body));
     }
     try {
       return parseExtraction(JSON.parse(res.data));
     } catch (e) {
-      throw e instanceof ExtractError ? e : new ExtractError(ctrl.signal.aborted ? 'timeout' : 'parse');
+      throw e instanceof ExtractError ? e : new ExtractError(ctrl.signal.aborted ? 'timeout' : 'parse', undefined, 'Gemini sent a reply the app could not read');
     }
   } finally {
     clearTimeout(timer);

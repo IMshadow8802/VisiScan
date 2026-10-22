@@ -16,10 +16,10 @@ import { Txt } from '../components/Txt';
 import { listContacts, saveContact } from '../lib/db';
 import { getCard, syncNow } from '../lib/sync';
 import { canSave, cleanFields, errorMessage, formChanged } from '../lib/form';
-import { extractCard, ExtractError } from '../lib/gemini';
+import { ExtractError } from '../lib/gemini';
+import { readCard } from '../lib/read';
 import { nextColor } from '../lib/palette';
 import { deletePhotos, persistPhotos, prepareImage } from '../lib/photos';
-import { getApiKey, getModel } from '../lib/settings';
 import { emptyFields, type CardFields, type Contact } from '../lib/types';
 import { colors, radius, shadow, space } from '../theme/tokens';
 
@@ -30,7 +30,9 @@ type Phase = 'loading' | 'error' | 'form';
 const ERROR_ICON: Partial<Record<ExtractError['kind'], keyof typeof Feather.glyphMap>> = {
   key: 'key',
   network: 'wifi-off',
-  timeout: 'wifi-off',
+  timeout: 'clock',
+  busy: 'cloud-off',
+  billing: 'credit-card',
 };
 
 export default function Review() {
@@ -43,6 +45,7 @@ export default function Review() {
 
   const [phase, setPhase] = useState<Phase>('loading');
   const [errKind, setErrKind] = useState<ExtractError['kind']>('server');
+  const [errDetail, setErrDetail] = useState('');
   const [form, setForm] = useState<Form>({ ...emptyFields, notes: '' });
   // new: raw scanner files until prepared, then the resized copies; edit: the contact's stored photos
   const [photos, setPhotos] = useState<Photos | null>(
@@ -70,13 +73,12 @@ export default function Review() {
         const [f, b] = prepared.current;
         setPhotos({ front: f.uri, back: b?.uri ?? null });
       }
-      const key = await getApiKey();
-      if (!key) throw new ExtractError('key');
-      const fields = await extractCard(prepared.current, key, await getModel());
+      const fields = await readCard(prepared.current);
       setForm({ ...fields, notes: '' });
       setPhase('form');
     } catch (e) {
       setErrKind(e instanceof ExtractError ? e.kind : 'server');
+      setErrDetail(e instanceof ExtractError ? e.detail : String((e as Error)?.message ?? e));
       setPhase('error');
     }
   };
@@ -177,6 +179,11 @@ export default function Review() {
             <Txt variant="heading" accessibilityRole="alert" style={{ textAlign: 'center' }}>
               {errorMessage(errKind)}
             </Txt>
+            {!!errDetail && (
+              <Txt variant="caption" selectable style={{ color: colors.muted, textAlign: 'center' }}>
+                {errDetail}
+              </Txt>
+            )}
             <Txt style={{ color: colors.muted, textAlign: 'center' }}>Your photos are kept. Try again, or type the details in.</Txt>
             <View style={{ alignSelf: 'stretch', gap: space.md, marginTop: space.sm }}>
               <Button

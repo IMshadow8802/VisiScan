@@ -24,9 +24,11 @@ test('list row helpers do not mutate', () => {
 });
 
 test('errorMessage per kind', () => {
-  expect(errorMessage('key')).toBe('API key missing or invalid. Check EXPO_PUBLIC_GEMINI_API_KEY in .env.local, then restart with expo start -c or rebuild');
-  expect(errorMessage('quota')).toBe('Daily limit reached, try later');
-  expect(errorMessage('timeout')).toBe('No connection');
+  expect(errorMessage('key')).toBe('API key missing or invalid. Check the keys in .env.local, then restart with expo start -c or rebuild');
+  expect(errorMessage('quota')).toBe('Card reader limit reached. Try again in a minute');
+  expect(errorMessage('busy')).toBe('Card reader is busy right now. Try again in a moment');
+  expect(errorMessage('billing')).toBe('Card reader credits used up. Add credits to the account');
+  expect(errorMessage('timeout')).toBe('Card reader took too long. Try again');
   expect(errorMessage('network')).toBe('No connection');
   expect(errorMessage('server')).toBe("Couldn't read the card");
   expect(errorMessage('parse')).toBe("Couldn't read the card");
